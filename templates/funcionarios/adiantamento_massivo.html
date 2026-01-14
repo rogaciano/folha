@@ -1,0 +1,151 @@
+{% extends 'base.html' %}
+{% load widget_tweaks %}
+
+{% block title %}{{ title }} - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Page Header -->
+    <div class="flex justify-between items-center">
+        <h1 class="text-3xl font-bold text-gray-900">{{ title }}</h1>
+        <a href="{% url 'funcionarios:adiantamento_list' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+            <i data-lucide="arrow-left" class="w-5 h-5 mr-2"></i>
+            Voltar
+        </a>
+    </div>
+
+    <!-- Info Alert -->
+    <div class="bg-blue-50 border-l-4 border-blue-400 p-4">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <i data-lucide="info" class="w-5 h-5 text-blue-400"></i>
+            </div>
+            <div class="ml-3">
+                <p class="text-sm text-blue-700">
+                    Esta operação irá adicionar lançamentos na folha de pagamento para todos os funcionários que atendem aos filtros selecionados.
+                    Use para lançamentos em massa como vale-transporte, vale-refeição, bônus, etc.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Form -->
+    <div class="bg-white shadow rounded-lg p-6" x-data="{ tipoValor: 'F' }">
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+            
+            <!-- Folha e Tipo de Lançamento -->
+            <div>
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Destino do Lançamento</h3>
+                <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Folha de Pagamento *</label>
+                        {% render_field form.folha_pagamento class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" %}
+                        <p class="mt-1 text-xs text-gray-500">{{ form.folha_pagamento.help_text }}</p>
+                        {% if form.folha_pagamento.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.folha_pagamento.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Provento/Desconto *</label>
+                        {% render_field form.provento_desconto class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" %}
+                        <p class="mt-1 text-xs text-gray-500">{{ form.provento_desconto.help_text }}</p>
+                        {% if form.provento_desconto.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.provento_desconto.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Filtros -->
+            <div class="border-t border-gray-200 pt-6">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Filtros de Funcionários</h3>
+                <div class="grid grid-cols-1 gap-6 sm:grid-cols-3">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Setor</label>
+                        {% render_field form.setor class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" %}
+                        <p class="mt-1 text-xs text-gray-500">Deixe em branco para incluir todos</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Função</label>
+                        {% render_field form.funcao class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" %}
+                        <p class="mt-1 text-xs text-gray-500">Deixe em branco para incluir todos</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                        {% render_field form.status class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Valor do Lançamento -->
+            <div class="border-t border-gray-200 pt-6">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Valor do Lançamento</h3>
+                <div class="grid grid-cols-1 gap-6 sm:grid-cols-3">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Tipo de Valor *</label>
+                        <select name="tipo_valor" x-model="tipoValor" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <option value="F">Valor Fixo</option>
+                            <option value="P">Percentual do Salário</option>
+                        </select>
+                    </div>
+                    <div x-show="tipoValor === 'F'">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Valor Fixo (R$) *</label>
+                        {% render_field form.valor_fixo class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="0.00" %}
+                        {% if form.valor_fixo.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.valor_fixo.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                    <div x-show="tipoValor === 'P'">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Percentual (%) *</label>
+                        {% render_field form.percentual class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="0.00" %}
+                        {% if form.percentual.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.percentual.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Data (Referência)</label>
+                        {% render_field form.data_adiantamento class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" %}
+                        <p class="mt-1 text-xs text-gray-500">{{ form.data_adiantamento.help_text }}</p>
+                        {% if form.data_adiantamento.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.data_adiantamento.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Erros Gerais do Form -->
+            {% if form.non_field_errors %}
+                <div class="rounded-md bg-red-50 p-4">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <i data-lucide="alert-circle" class="w-5 h-5 text-red-400"></i>
+                        </div>
+                        <div class="ml-3">
+                            <h3 class="text-sm font-medium text-red-800">Erros no formulário:</h3>
+                            <div class="mt-2 text-sm text-red-700">
+                                <ul class="list-disc list-inside space-y-1">
+                                    {% for error in form.non_field_errors %}
+                                        <li>{{ error }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- Actions -->
+            <div class="flex justify-end space-x-3 border-t border-gray-200 pt-6">
+                <a href="{% url 'funcionarios:adiantamento_list' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                    Cancelar
+                </a>
+                <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700">
+                    <i data-lucide="check-circle" class="w-5 h-5 mr-2"></i>
+                    Aplicar Lançamentos
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

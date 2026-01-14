@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+{% load widget_tweaks %}
+
+{% block title %}{{ title }} - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Page Header -->
+    <div class="flex justify-between items-center">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">{{ title }}</h1>
+            <p class="mt-2 text-sm text-gray-600">
+                <a href="{% url 'funcionarios:detail' funcionario.pk %}" class="text-blue-600 hover:text-blue-800">
+                    <i data-lucide="arrow-left" class="w-4 h-4 inline"></i>
+                    Voltar para {{ funcionario.nome_completo }}
+                </a>
+            </p>
+        </div>
+    </div>
+
+    <!-- Form -->
+    <div class="bg-white shadow rounded-lg p-6">
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+            
+            <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                <!-- Tipo de Contrato -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Tipo de Contrato *
+                    </label>
+                    {% render_field form.tipo_contrato class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" %}
+                    {% if form.tipo_contrato.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.tipo_contrato.errors.0 }}</p>
+                    {% endif %}
+                    <p class="mt-1 text-xs text-gray-500">CLT, PJ, Estágio, etc.</p>
+                </div>
+
+                <!-- Carga Horária -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Carga Horária (horas/semana) *
+                    </label>
+                    {% render_field form.carga_horaria class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" %}
+                    {% if form.carga_horaria.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.carga_horaria.errors.0 }}</p>
+                    {% endif %}
+                    <p class="mt-1 text-xs text-gray-500">Exemplo: 40 (horas por semana)</p>
+                </div>
+
+                <!-- Data de Início -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Data de Início *
+                    </label>
+                    {% render_field form.data_inicio class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" %}
+                    {% if form.data_inicio.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.data_inicio.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Data de Fim -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Data de Fim (Opcional)
+                    </label>
+                    {% render_field form.data_fim class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" %}
+                    {% if form.data_fim.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.data_fim.errors.0 }}</p>
+                    {% endif %}
+                    <p class="mt-1 text-xs text-gray-500">Deixe em branco para contrato por prazo indeterminado</p>
+                </div>
+
+                <!-- Observações -->
+                <div class="col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Observações
+                    </label>
+                    {% render_field form.observacoes class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" %}
+                    {% if form.observacoes.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.observacoes.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Validações e Avisos -->
+            {% if form.non_field_errors %}
+            <div class="rounded-md bg-red-50 p-4">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i data-lucide="alert-circle" class="h-5 w-5 text-red-400"></i>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-red-800">Erro de validação:</h3>
+                        <div class="mt-2 text-sm text-red-700">
+                            {{ form.non_field_errors.0 }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Actions -->
+            <div class="flex justify-end space-x-3 border-t border-gray-200 pt-6">
+                <a href="{% url 'funcionarios:detail' funcionario.pk %}" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                    <i data-lucide="x" class="w-4 h-4 mr-2"></i>
+                    Cancelar
+                </a>
+                <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700">
+                    <i data-lucide="save" class="w-4 h-4 mr-2"></i>
+                    Salvar Contrato
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Informações Importantes -->
+    <div class="bg-blue-50 border-l-4 border-blue-400 p-4">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <i data-lucide="info" class="h-5 w-5 text-blue-400"></i>
+            </div>
+            <div class="ml-3">
+                <p class="text-sm text-blue-700">
+                    <strong>Importante:</strong> O sistema não permitirá a criação de contratos com períodos sobrepostos para o mesmo funcionário.
+                    Se a data de fim não for preenchida, o contrato será considerado por prazo indeterminado.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

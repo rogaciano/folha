@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }} - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto bg-white shadow rounded-lg p-6">
+    <h1 class="text-2xl font-bold mb-4">{{ title }} - Folha {{ folha.periodo_referencia }}</h1>
+    <form method="post" class="space-y-4">
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+        <div>
+            <label class="block text-sm font-medium text-gray-700">Data do Evento</label>
+            {{ form.data_evento }}
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700">Parcela</label>
+            {{ form.parcela }}
+        </div>
+        <div class="flex justify-end space-x-2">
+            <a href="{% url 'folha:detail' folha.pk %}" class="px-4 py-2 border border-gray-300 rounded-md">Cancelar</a>
+            <button type="submit" class="px-4 py-2 bg-purple-600 text-white rounded-md">Criar Evento</button>
+        </div>
+    </form>
+    <p class="mt-4 text-sm text-gray-500">A 1ª parcela lança 50% do salário; a 2ª parcela lança o restante.</p>
+</div>
+{% endblock %}

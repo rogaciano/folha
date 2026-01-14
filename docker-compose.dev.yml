@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  # Django Application (Development)
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=True
+      - SECRET_KEY=dev-secret-key-change-in-production
+      - DJANGO_SETTINGS_MODULE=config.settings.development
+    stdin_open: true
+    tty: true

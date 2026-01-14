@@ -1,0 +1,162 @@
+{% extends 'base.html' %}
+{% load widget_tweaks %}
+
+{% block title %}{{ title }} - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Page Header -->
+    <div class="flex justify-between items-center">
+        <h1 class="text-3xl font-bold text-gray-900">{{ title }}</h1>
+        <a href="{% url 'funcionarios:list' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+            <i data-lucide="arrow-left" class="w-5 h-5 mr-2"></i>
+            Voltar
+        </a>
+    </div>
+
+    <!-- Form -->
+    <div class="bg-white shadow rounded-lg p-6">
+        <form method="post" enctype="multipart/form-data" class="space-y-6">
+            {% csrf_token %}
+            
+            <!-- Informações Pessoais -->
+            <div>
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Informações Pessoais</h3>
+                <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                    <div class="col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Nome Completo *</label>
+                        {% render_field form.nome_completo class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" %}
+                        {% if form.nome_completo.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.nome_completo.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">CPF *</label>
+                        {% render_field form.cpf class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="000.000.000-00" %}
+                        {% if form.cpf.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.cpf.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Foto</label>
+                        {% render_field form.foto class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" %}
+                        {% if form.foto.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.foto.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Data de Nascimento</label>
+                        {% render_field form.data_nascimento class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" %}
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">E-mail</label>
+                        {% render_field form.email class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" %}
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Telefone</label>
+                        {% render_field form.telefone class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" %}
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Chave PIX</label>
+                        {% render_field form.chave_pix class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="CPF, e-mail, telefone ou chave aleatória" %}
+                        <p class="mt-1 text-xs text-gray-500">CPF, E-mail, Telefone ou Chave Aleatória</p>
+                    </div>
+                    <div class="col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Endereço</label>
+                        {% render_field form.endereco class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Informações Profissionais -->
+            <div class="border-t border-gray-200 pt-6">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Informações Profissionais</h3>
+                <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Data de Admissão *</label>
+                        {% render_field form.data_admissao class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" %}
+                        {% if form.data_admissao.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.data_admissao.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Função *</label>
+                        {% render_field form.funcao class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" %}
+                        {% if form.funcao.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.funcao.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Setor *</label>
+                        {% render_field form.setor class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" %}
+                        {% if form.setor.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.setor.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Salário Base *</label>
+                        {% render_field form.salario_base class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" %}
+                        {% if form.salario_base.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.salario_base.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                    <div class="col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Superior/Responsável (Opcional)
+                            <span class="text-xs text-gray-500 font-normal ml-2">- Deixe em branco para usar o chefe do setor automaticamente</span>
+                        </label>
+                        {% render_field form.superior class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" %}
+                        {% if form.superior.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.superior.errors.0 }}</p>
+                        {% endif %}
+                        <p class="mt-1 text-xs text-gray-500">
+                            💡 <strong>Dica:</strong> Use este campo apenas para exceções (ex: chefe de setor que responde a outra diretoria). 
+                            Funcionários regulares terão automaticamente o chefe do setor como superior.
+                        </p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Status *</label>
+                        {% render_field form.status class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" %}
+                        {% if form.status.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.status.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                    <div class="col-span-2">
+                        <div class="flex items-start">
+                            <div class="flex items-center h-5">
+                                {% render_field form.participa_folha class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" %}
+                            </div>
+                            <div class="ml-3">
+                                <label for="{{ form.participa_folha.id_for_label }}" class="text-sm font-medium text-gray-700">
+                                    Participa da Folha de Pagamento
+                                </label>
+                                <p class="text-xs text-gray-500 mt-1">
+                                    {{ form.participa_folha.help_text }}
+                                </p>
+                                {% if form.participa_folha.errors %}
+                                    <p class="mt-1 text-sm text-red-600">{{ form.participa_folha.errors.0 }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Observações</label>
+                        {% render_field form.observacoes class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex justify-end space-x-3 border-t border-gray-200 pt-6">
+                <a href="{% url 'funcionarios:list' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                    Cancelar
+                </a>
+                <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700">
+                    <i data-lucide="save" class="w-5 h-5 mr-2"></i>
+                    Salvar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

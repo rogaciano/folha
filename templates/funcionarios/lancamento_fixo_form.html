@@ -1,0 +1,140 @@
+{% extends 'base.html' %}
+{% load widget_tweaks %}
+
+{% block title %}{{ title }} - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Page Header -->
+    <div class="flex justify-between items-center">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">{{ title }}</h1>
+            <p class="mt-1 text-sm text-gray-500">{{ funcionario.nome_completo }}</p>
+        </div>
+        <a href="{% url 'funcionarios:detail' funcionario.pk %}" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+            <i data-lucide="arrow-left" class="w-5 h-5 mr-2"></i>
+            Voltar
+        </a>
+    </div>
+
+    <!-- Form -->
+    <div class="bg-white shadow rounded-lg p-6" x-data="{ tipoValor: '{{ form.tipo_valor.value|default:'F' }}' }">
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+            
+            <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                <!-- Provento/Desconto -->
+                <div class="sm:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Provento/Desconto *</label>
+                    <select name="{{ form.provento_desconto.name }}" 
+                            id="{{ form.provento_desconto.id_for_label }}"
+                            class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" 
+                            required>
+                        <option value="">---------</option>
+                        {% for pd in proventos_descontos %}
+                            <option value="{{ pd.pk }}" 
+                                    {% if form.instance.provento_desconto_id == pd.pk %}selected{% endif %}>
+                                {{ pd }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    {% if form.provento_desconto.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.provento_desconto.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Tipo de Valor -->
+                <div class="sm:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Tipo de Valor *</label>
+                    <select name="{{ form.tipo_valor.name }}" 
+                            id="{{ form.tipo_valor.id_for_label }}"
+                            class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" 
+                            x-model="tipoValor"
+                            required>
+                        {% for value, label in form.tipo_valor.field.choices %}
+                            <option value="{{ value }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                    {% if form.tipo_valor.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.tipo_valor.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Valor Fixo -->
+                <div x-show="tipoValor === 'F'" class="sm:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Valor Fixo (R$) *</label>
+                    {% render_field form.valor class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="0.00" %}
+                    {% if form.valor.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.valor.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Percentual -->
+                <div x-show="tipoValor === 'P'" class="sm:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Percentual do Salário (%) *</label>
+                    {% render_field form.percentual class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="0.00" %}
+                    {% if form.percentual.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.percentual.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Datas -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Data Início *</label>
+                    {% render_field form.data_inicio class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" type="date" %}
+                    {% if form.data_inicio.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.data_inicio.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Data Fim (Opcional)</label>
+                    {% render_field form.data_fim class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" type="date" %}
+                    <p class="mt-1 text-xs text-gray-500">Deixe em branco para lançamento recorrente sem prazo</p>
+                    {% if form.data_fim.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.data_fim.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Observações -->
+                <div class="sm:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Observações</label>
+                    {% render_field form.observacoes class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" rows="3" %}
+                </div>
+            </div>
+
+            <!-- Erros Gerais -->
+            {% if form.non_field_errors %}
+                <div class="rounded-md bg-red-50 p-4">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <i data-lucide="alert-circle" class="w-5 h-5 text-red-400"></i>
+                        </div>
+                        <div class="ml-3">
+                            <h3 class="text-sm font-medium text-red-800">Erros no formulário:</h3>
+                            <div class="mt-2 text-sm text-red-700">
+                                <ul class="list-disc list-inside space-y-1">
+                                    {% for error in form.non_field_errors %}
+                                        <li>{{ error }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- Actions -->
+            <div class="flex justify-end space-x-3 border-t border-gray-200 pt-6">
+                <a href="{% url 'funcionarios:detail' funcionario.pk %}" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                    Cancelar
+                </a>
+                <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700">
+                    <i data-lucide="check-circle" class="w-5 h-5 mr-2"></i>
+                    Salvar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

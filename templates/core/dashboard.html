@@ -1,0 +1,224 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Page Header -->
+    <div class="flex justify-between items-center">
+        <h1 class="text-3xl font-bold text-gray-900">Dashboard</h1>
+        <div class="flex space-x-3">
+            <a href="{% url 'funcionarios:create' %}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700">
+                <i data-lucide="user-plus" class="w-5 h-5 mr-2"></i>
+                Novo Funcionário
+            </a>
+            <a href="{% url 'folha:gerar' %}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700">
+                <i data-lucide="file-text" class="w-5 h-5 mr-2"></i>
+                Gerar Folha
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-5">
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="p-5">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0 bg-blue-500 rounded-md p-3">
+                        <i data-lucide="users" class="w-6 h-6 text-white"></i>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">Funcionários Ativos</dt>
+                            <dd class="text-3xl font-semibold text-gray-900">{{ total_funcionarios }}</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="p-5">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0 bg-purple-500 rounded-md p-3">
+                        <i data-lucide="dollar-sign" class="w-6 h-6 text-white"></i>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">Total Salários</dt>
+                            <dd class="text-2xl font-semibold text-gray-900">R$ {{ total_salarios|floatformat:2 }}</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="p-5">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0 bg-red-500 rounded-md p-3">
+                        <i data-lucide="user-x" class="w-6 h-6 text-white"></i>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">Inativos</dt>
+                            <dd class="text-3xl font-semibold text-gray-900">{{ total_inativos }}</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="p-5">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0 bg-yellow-500 rounded-md p-3">
+                        <i data-lucide="sun" class="w-6 h-6 text-white"></i>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">Em Férias</dt>
+                            <dd class="text-3xl font-semibold text-gray-900">{{ total_ferias }}</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="p-5">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0 bg-green-500 rounded-md p-3">
+                        <i data-lucide="file-text" class="w-6 h-6 text-white"></i>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">Última Folha</dt>
+                            <dd class="text-2xl font-semibold text-gray-900">
+                                {% if ultima_folha %}{{ ultima_folha.periodo_referencia }}{% else %}N/A{% endif %}
+                            </dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Additional Stats -->
+    <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div class="bg-gradient-to-r from-purple-500 to-purple-600 overflow-hidden shadow rounded-lg">
+            <div class="p-5">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <i data-lucide="trending-up" class="w-8 h-8 text-white"></i>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-purple-100 truncate">Salário Médio</dt>
+                            <dd class="text-2xl font-bold text-white">R$ {{ salario_medio|floatformat:2 }}</dd>
+                            <dd class="text-xs text-purple-100 mt-1">Por funcionário ativo</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-blue-500 to-blue-600 overflow-hidden shadow rounded-lg">
+            <div class="p-5">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <i data-lucide="calendar" class="w-8 h-8 text-white"></i>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-blue-100 truncate">Custo Mensal</dt>
+                            <dd class="text-2xl font-bold text-white">R$ {{ total_salarios|floatformat:2 }}</dd>
+                            <dd class="text-xs text-blue-100 mt-1">Folha base de {{ total_funcionarios }} funcionário{{ total_funcionarios|pluralize }}</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-green-500 to-green-600 overflow-hidden shadow rounded-lg">
+            <div class="p-5">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <i data-lucide="calendar-check" class="w-8 h-8 text-white"></i>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-green-100 truncate">Projeção Anual</dt>
+                            <dd class="text-2xl font-bold text-white">R$ {{ projecao_anual|floatformat:2 }}</dd>
+                            <dd class="text-xs text-green-100 mt-1">12 meses (sem encargos)</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Two Column Layout -->
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <!-- Férias a Vencer -->
+        <div class="bg-white shadow rounded-lg">
+            <div class="px-6 py-5 border-b border-gray-200">
+                <h3 class="text-lg font-medium text-gray-900 flex items-center">
+                    <i data-lucide="alert-circle" class="w-5 h-5 mr-2 text-yellow-500"></i>
+                    Férias a Vencer (60 dias)
+                </h3>
+            </div>
+            <div class="px-6 py-4">
+                {% if ferias_a_vencer %}
+                    <ul class="divide-y divide-gray-200">
+                        {% for ferias in ferias_a_vencer %}
+                        <li class="py-3">
+                            <div class="flex justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-900">{{ ferias.funcionario.nome_completo }}</p>
+                                    <p class="text-sm text-gray-500">Período: {{ ferias.periodo_aquisitivo_inicio|date:"d/m/Y" }} - {{ ferias.periodo_aquisitivo_fim|date:"d/m/Y" }}</p>
+                                </div>
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                    Vence em breve
+                                </span>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="text-sm text-gray-500">Nenhuma férias a vencer nos próximos 60 dias.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Funcionários Recentes -->
+        <div class="bg-white shadow rounded-lg">
+            <div class="px-6 py-5 border-b border-gray-200">
+                <h3 class="text-lg font-medium text-gray-900 flex items-center">
+                    <i data-lucide="user-check" class="w-5 h-5 mr-2 text-green-500"></i>
+                    Admissões Recentes (30 dias)
+                </h3>
+            </div>
+            <div class="px-6 py-4">
+                {% if funcionarios_recentes %}
+                    <ul class="divide-y divide-gray-200">
+                        {% for funcionario in funcionarios_recentes %}
+                        <li class="py-3">
+                            <div class="flex justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-900">{{ funcionario.nome_completo }}</p>
+                                    <p class="text-sm text-gray-500">{{ funcionario.funcao.nome }} - {{ funcionario.setor.nome }}</p>
+                                </div>
+                                <span class="text-sm text-gray-500">{{ funcionario.data_admissao|date:"d/m/Y" }}</span>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="text-sm text-gray-500">Nenhuma admissão nos últimos 30 dias.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

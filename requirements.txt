@@ -1,0 +1,41 @@
+# Core Django
+Django==4.2.7
+django-environ==0.11.2
+
+# Database
+psycopg2-binary==2.9.9
+
+# Django REST Framework
+djangorestframework==3.14.0
+
+# Frontend Tools
+django-tailwind==3.6.0
+django-browser-reload==1.12.1
+
+# Forms & Widgets
+django-widget-tweaks==1.5.0
+django-crispy-forms==2.1
+crispy-tailwind==1.0.3
+
+# Utilities
+python-decouple==3.8
+Pillow==10.1.0
+python-dateutil==2.8.2
+
+# Development
+pytest==7.4.3
+pytest-django==4.7.0
+coverage==7.3.2
+factory-boy==3.3.0
+
+# Production Server
+gunicorn==21.2.0
+whitenoise==6.6.0
+
+# Validations
+validate-docbr==1.10.0
+
+# Export (PDF/Excel)
+reportlab==4.0.7
+openpyxl==3.1.2
+xlsxwriter==3.1.9

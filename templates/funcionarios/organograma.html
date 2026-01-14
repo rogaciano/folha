@@ -1,0 +1,159 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Organograma - Folha de Pagamento{% endblock %}
+
+{% block content %}
+<div class="mb-8" x-data="{ view: 'hierarquia' }">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900 flex items-center">
+                <i data-lucide="network" class="w-8 h-8 mr-3 text-blue-500"></i>
+                Organograma da Empresa
+            </h1>
+            <p class="mt-2 text-sm text-gray-600">
+                Estrutura hierárquica e organização dos setores
+            </p>
+        </div>
+        <div class="flex space-x-3">
+            <a href="{% url 'funcionarios:list' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                <i data-lucide="arrow-left" class="w-4 h-4 mr-2"></i>
+                Voltar
+            </a>
+        </div>
+    </div>
+
+    <!-- View Toggle -->
+    <div class="bg-white shadow rounded-lg mb-6">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <div class="flex space-x-4">
+                <button @click="view = 'hierarquia'" :class="view === 'hierarquia' ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-100'" class="px-4 py-2 rounded-md text-sm font-medium transition-colors">
+                    <i data-lucide="git-branch" class="w-4 h-4 inline mr-2"></i>
+                    Visão Hierárquica
+                </button>
+                <button @click="view = 'setores'" :class="view === 'setores' ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-100'" class="px-4 py-2 rounded-md text-sm font-medium transition-colors">
+                    <i data-lucide="briefcase" class="w-4 h-4 inline mr-2"></i>
+                    Por Setores
+                </button>
+            </div>
+            <div class="flex items-center">
+                <span class="text-sm text-gray-500 mr-2">Total de funcionários ativos:</span>
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                    {{ total_funcionarios }}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Visão Hierárquica -->
+    <div x-show="view === 'hierarquia'" class="space-y-4">
+        {% if funcionarios_topo %}
+            {% for funcionario in funcionarios_topo %}
+                {% include 'funcionarios/_organograma_node.html' with funcionario=funcionario level=0 %}
+            {% endfor %}
+        {% else %}
+            <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i data-lucide="alert-triangle" class="w-5 h-5 text-yellow-400"></i>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm text-yellow-700">
+                            Nenhum funcionário na alta direção encontrado. 
+                            <a href="{% url 'funcionarios:list' %}" class="font-medium underline hover:text-yellow-600">
+                                Configure os superiores dos funcionários
+                            </a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Visão por Setores -->
+    <div x-show="view === 'setores'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for setor in setores %}
+        <div class="bg-white shadow rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
+            <div class="px-6 py-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white">
+                <h3 class="text-lg font-semibold flex items-center">
+                    <i data-lucide="briefcase" class="w-5 h-5 mr-2"></i>
+                    {{ setor.nome }}
+                </h3>
+                {% if setor.descricao %}
+                <p class="mt-1 text-sm text-blue-100">{{ setor.descricao }}</p>
+                {% endif %}
+            </div>
+            
+            <!-- Chefe do Setor -->
+            {% if setor.chefe %}
+            <div class="px-6 py-4 bg-blue-50 border-b border-blue-100">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <i data-lucide="crown" class="w-6 h-6 text-yellow-500"></i>
+                    </div>
+                    <div class="ml-3 flex-1">
+                        <p class="text-xs font-medium text-gray-500 uppercase">Chefe do Setor</p>
+                        <a href="{% url 'funcionarios:detail' setor.chefe.pk %}" class="text-sm font-semibold text-blue-700 hover:text-blue-900">
+                            {{ setor.chefe.nome_completo }}
+                        </a>
+                        <p class="text-xs text-gray-600">{{ setor.chefe.funcao.nome }}</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Funcionários do Setor -->
+            <div class="px-6 py-4">
+                <p class="text-xs font-medium text-gray-500 uppercase mb-3">Equipe</p>
+                {% with funcionarios=setor.get_funcionarios_ativos %}
+                    {% if funcionarios %}
+                        <div class="space-y-2 max-h-64 overflow-y-auto">
+                            {% for func in funcionarios %}
+                            <div class="flex items-center p-2 hover:bg-gray-50 rounded">
+                                <div class="flex-shrink-0">
+                                    {% if func.foto %}
+                                        <img class="h-8 w-8 rounded-full object-cover" src="{{ func.foto.url }}" alt="{{ func.nome_completo }}">
+                                    {% else %}
+                                        <div class="h-8 w-8 rounded-full bg-gray-300 flex items-center justify-center">
+                                            <span class="text-gray-600 font-semibold text-xs">{{ func.nome_completo.0 }}</span>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                <div class="ml-3 flex-1 min-w-0">
+                                    <a href="{% url 'funcionarios:detail' func.pk %}" class="text-sm font-medium text-gray-900 hover:text-blue-700 truncate block">
+                                        {{ func.nome_completo }}
+                                    </a>
+                                    <p class="text-xs text-gray-500 truncate">{{ func.funcao.nome }}</p>
+                                </div>
+                                {% if func.get_subordinados_diretos.count > 0 %}
+                                <div class="flex-shrink-0">
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                        {{ func.get_subordinados_diretos.count }}
+                                    </span>
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-sm text-gray-500 italic">Nenhum funcionário neste setor</p>
+                    {% endif %}
+                {% endwith %}
+            </div>
+            
+            <div class="px-6 py-3 bg-gray-50 text-right">
+                <span class="text-sm text-gray-600">
+                    Total: <span class="font-semibold">{{ setor.get_funcionarios_ativos.count }}</span> funcionário{{ setor.get_funcionarios_ativos.count|pluralize }}
+                </span>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-span-3 bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
+            <i data-lucide="inbox" class="w-12 h-12 text-gray-400 mx-auto mb-3"></i>
+            <p class="text-gray-600">Nenhum setor cadastrado.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
