@@ -5,6 +5,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.exceptions import ValidationError
+from django.views.decorators.http import require_POST
 
 from .models import FolhaPagamento, ItemFolha, ResumoFolhaFuncionario
 from .forms import GerarFolhaForm, ItemFolhaForm, EventoAdiantamentoForm, EventoDecimoTerceiroForm
@@ -26,11 +27,17 @@ def folha_list(request):
 def folha_detail(request, pk):
     """Detalhes da folha de pagamento"""
     folha = get_object_or_404(FolhaPagamento, pk=pk)
+    filtro_pagamento = request.GET.get('pagamento', 'todos')
     
     # Busca resumos por funcionário
     resumos = ResumoFolhaFuncionario.objects.filter(
         folha_pagamento=folha
     ).select_related('funcionario').order_by('funcionario__nome_completo')
+
+    if filtro_pagamento == 'pagos':
+        resumos = resumos.filter(pago=True)
+    elif filtro_pagamento == 'pendentes':
+        resumos = resumos.filter(pago=False)
     
     # Busca itens da folha agrupados por funcionário
     itens = ItemFolha.objects.filter(
@@ -45,8 +52,36 @@ def folha_detail(request, pk):
         'resumos': resumos,
         'itens': itens,
         'eventos': eventos,
+        'filtro_pagamento': filtro_pagamento,
+        'total_funcionarios': folha.resumos.count(),
+        'total_pagos': folha.resumos.filter(pago=True).count(),
     }
     return render(request, 'folha/folha_detail.html', context)
+
+
+@login_required
+@require_POST
+def resumo_toggle_pago(request, pk):
+    """Marca ou desmarca o pagamento individual de um funcionário na folha"""
+    resumo = get_object_or_404(ResumoFolhaFuncionario.objects.select_related('folha_pagamento', 'funcionario'), pk=pk)
+    folha = resumo.folha_pagamento
+
+    if folha.status == 'R':
+        messages.error(request, 'Feche a folha antes de marcar pagamentos individuais.')
+        return redirect('folha:detail', pk=folha.pk)
+
+    if resumo.pago:
+        resumo.desmarcar_pagamento()
+        messages.success(request, f'Pagamento de {resumo.funcionario.nome_completo} desmarcado.')
+    else:
+        resumo.marcar_como_pago()
+        messages.success(request, f'Pagamento de {resumo.funcionario.nome_completo} marcado com sucesso.')
+
+    filtro_pagamento = request.GET.get('pagamento') or request.POST.get('pagamento')
+    if filtro_pagamento in ['pagos', 'pendentes']:
+        return redirect(f"{redirect('folha:detail', pk=folha.pk).url}?pagamento={filtro_pagamento}")
+
+    return redirect('folha:detail', pk=folha.pk)
 
 
 @login_required
@@ -108,12 +143,7 @@ def folha_reabrir(request, pk):
 def folha_marcar_paga(request, pk):
     """Marcar folha como paga"""
     folha = get_object_or_404(FolhaPagamento, pk=pk)
-    
-    try:
-        folha.marcar_como_paga()
-        messages.success(request, f'Folha de {folha.periodo_referencia} marcada como paga!')
-    except ValidationError as e:
-        messages.error(request, str(e))
+    messages.error(request, 'Use a coluna Pago no resumo por funcionário. A folha será marcada como paga automaticamente quando todos estiverem pagos.')
     
     return redirect('folha:detail', pk=folha.pk)
 
@@ -275,11 +305,7 @@ def evento_reabrir(request, pk):
 def evento_marcar_pago(request, pk):
     from .models import EventoPagamento
     evento = get_object_or_404(EventoPagamento, pk=pk)
-    try:
-        evento.marcar_como_pago()
-        messages.success(request, 'Evento marcado como pago!')
-    except ValidationError as e:
-        messages.error(request, str(e))
+    messages.error(request, 'O evento será marcado como pago automaticamente quando todos os funcionários da folha estiverem pagos.')
     return redirect('folha:detail', pk=evento.folha_pagamento.pk)
 
 

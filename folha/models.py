@@ -129,6 +129,34 @@ class FolhaPagamento(TimeStampedModel):
             total=Sum('valor_total')
         )['total'] or Decimal('0.00')
 
+    def sincronizar_pagamentos_individuais(self):
+        """Sincroniza status da folha e eventos com base nos pagamentos individuais"""
+        resumos = self.resumos.all()
+        todos_pagos = resumos.exists() and not resumos.filter(pago=False).exists()
+
+        if todos_pagos:
+            if self.status != 'P':
+                self.status = 'P'
+                self.save(update_fields=['status'])
+
+            data_pagamento = timezone.now().date()
+            for evento in self.eventos.filter(status='F'):
+                evento.status = 'P'
+                if not evento.data_pagamento:
+                    evento.data_pagamento = data_pagamento
+                    evento.save(update_fields=['status', 'data_pagamento'])
+                else:
+                    evento.save(update_fields=['status'])
+        else:
+            if self.status == 'P':
+                self.status = 'F'
+                self.save(update_fields=['status'])
+
+            for evento in self.eventos.filter(status='P'):
+                evento.status = 'F'
+                evento.data_pagamento = None
+                evento.save(update_fields=['status', 'data_pagamento'])
+
 
 class EventoPagamento(TimeStampedModel):
     """Eventos de pagamento dentro de uma competência (ex: adiantamento quinzenal, pagamento final)"""
@@ -368,6 +396,8 @@ class ResumoFolhaFuncionario(models.Model):
         decimal_places=2,
         default=0
     )
+    pago = models.BooleanField('Pago', default=False)
+    data_pagamento = models.DateField('Data do Pagamento', null=True, blank=True)
 
     class Meta:
         verbose_name = 'Resumo da Folha por Funcionário'
@@ -376,6 +406,20 @@ class ResumoFolhaFuncionario(models.Model):
 
     def __str__(self):
         return f"{self.folha_pagamento} - {self.funcionario.nome_completo}"
+
+    def marcar_como_pago(self):
+        """Marca o resumo do funcionário como pago"""
+        self.pago = True
+        self.data_pagamento = timezone.now().date()
+        self.save(update_fields=['pago', 'data_pagamento'])
+        self.folha_pagamento.sincronizar_pagamentos_individuais()
+
+    def desmarcar_pagamento(self):
+        """Remove a marcação de pagamento do resumo do funcionário"""
+        self.pago = False
+        self.data_pagamento = None
+        self.save(update_fields=['pago', 'data_pagamento'])
+        self.folha_pagamento.sincronizar_pagamentos_individuais()
 
     def calcular_totais(self):
         """Calcula os totais de proventos, descontos e líquido"""

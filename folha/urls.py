@@ -10,6 +10,7 @@ urlpatterns = [
     path('', views.folha_list, name='list'),
     path('gerar/', views.folha_gerar, name='gerar'),
     path('<int:pk>/', views.folha_detail, name='detail'),
+    path('resumo/<int:pk>/toggle-pago/', views.resumo_toggle_pago, name='resumo_toggle_pago'),
     path('<int:pk>/fechar/', views.folha_fechar, name='fechar'),
     path('<int:pk>/reabrir/', views.folha_reabrir, name='reabrir'),
     path('<int:pk>/marcar-paga/', views.folha_marcar_paga, name='marcar_paga'),
