@@ -441,19 +441,32 @@ class FolhaService:
         """
         # Compatibilidade: se folha foi passada mas evento não, busca/cria evento padrão
         if folha and not evento:
-            # Busca evento padrão existente
-            evento = folha.eventos.filter(tipo_evento='PF').first()
+            # Busca primeiro um evento padrão em rascunho
+            evento = folha.eventos.filter(tipo_evento='PF', status='R').first()
+
+            # Se não houver evento PF em rascunho, usa qualquer evento em rascunho
+            if not evento:
+                evento = folha.eventos.filter(status='R').order_by('data_evento', 'id').first()
             
             # Se não existe, cria um evento padrão
             if not evento:
                 import calendar
                 ultimo_dia = calendar.monthrange(folha.ano, folha.mes)[1]
                 data_evento = date(folha.ano, folha.mes, ultimo_dia)
+                descricao_base = f'Pagamento Final {folha.mes:02d}/{folha.ano}'
+                descricao_evento = descricao_base
+
+                # Se já houver um pagamento final com a descrição base,
+                # cria uma descrição complementar única para um novo rascunho.
+                contador = 2
+                while folha.eventos.filter(descricao=descricao_evento).exists():
+                    descricao_evento = f'{descricao_base} ({contador})'
+                    contador += 1
                 
                 evento = EventoPagamento.objects.create(
                     folha_pagamento=folha,
                     tipo_evento='PF',
-                    descricao=f'Pagamento Final {folha.mes:02d}/{folha.ano}',
+                    descricao=descricao_evento,
                     data_evento=data_evento,
                     status='R'
                 )

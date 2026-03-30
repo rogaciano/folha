@@ -343,10 +343,11 @@ def ferias_create(request, funcionario_pk):
             return redirect('funcionarios:detail', pk=funcionario.pk)
     else:
         # Calcula automaticamente o período aquisitivo
-        periodo = Ferias.calcular_periodo_aquisitivo(funcionario.data_admissao)
+        periodo_inicio, periodo_fim = Ferias.calcular_periodo_aquisitivo(funcionario.data_admissao)
         initial_data = {
-            'periodo_inicio': periodo['inicio'],
-            'periodo_fim': periodo['fim'],
+            'periodo_aquisitivo_inicio': periodo_inicio,
+            'periodo_aquisitivo_fim': periodo_fim,
+            'funcionario': funcionario,
         }
         form = FeriasForm(initial=initial_data)
     
