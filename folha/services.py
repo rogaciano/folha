@@ -499,17 +499,23 @@ class FolhaService:
         evento = item.evento_pagamento
         folha = item.folha_pagamento
         funcionario = item.funcionario
+        adiantamento_origem = item.adiantamento_origem
         
         if evento.status != 'R':
             raise ValidationError('Apenas eventos em rascunho podem ser editados')
-        
-        item.delete()
-        
-        # Atualiza o valor total do evento
-        evento.calcular_valor_total()
-        
-        # Atualiza o resumo do funcionário
-        FolhaService._criar_resumo_funcionario(folha, funcionario)
+
+        with transaction.atomic():
+            item.delete()
+
+            if adiantamento_origem and adiantamento_origem.status == 'D':
+                adiantamento_origem.status = 'P'
+                adiantamento_origem.save(update_fields=['status'])
+
+            # Atualiza o valor total do evento
+            evento.calcular_valor_total()
+
+            # Atualiza o resumo do funcionário
+            FolhaService._criar_resumo_funcionario(folha, funcionario)
 
 
 class AdiantamentoService:
