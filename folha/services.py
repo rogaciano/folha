@@ -450,18 +450,17 @@ class FolhaService:
             
             # Se não existe, cria um evento padrão
             if not evento:
+                evento_pf_existente = folha.eventos.filter(tipo_evento='PF').order_by('data_evento', 'id').first()
+
+                if evento_pf_existente:
+                    raise ValidationError(
+                        'Já existe um evento de Pagamento Final nesta folha e ele não está em rascunho. Reabra o evento existente para editar.'
+                    )
+
                 import calendar
                 ultimo_dia = calendar.monthrange(folha.ano, folha.mes)[1]
                 data_evento = date(folha.ano, folha.mes, ultimo_dia)
-                descricao_base = f'Pagamento Final {folha.mes:02d}/{folha.ano}'
-                descricao_evento = descricao_base
-
-                # Se já houver um pagamento final com a descrição base,
-                # cria uma descrição complementar única para um novo rascunho.
-                contador = 2
-                while folha.eventos.filter(descricao=descricao_evento).exists():
-                    descricao_evento = f'{descricao_base} ({contador})'
-                    contador += 1
+                descricao_evento = f'Pagamento Final {folha.mes:02d}/{folha.ano}'
                 
                 evento = EventoPagamento.objects.create(
                     folha_pagamento=folha,
