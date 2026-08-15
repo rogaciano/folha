@@ -245,3 +245,9 @@ class FeriasForm(forms.ModelForm):
         self.fields['periodo_aquisitivo_fim'].input_formats = ['%Y-%m-%d', '%d/%m/%Y']
         self.fields['data_inicio_gozo'].input_formats = ['%Y-%m-%d', '%d/%m/%Y']
         self.fields['data_fim_gozo'].input_formats = ['%Y-%m-%d', '%d/%m/%Y']
+        
+        # Funcionario pode ser atribuído pela view
+        if 'funcionario' in self.fields:
+            self.fields['funcionario'].required = False
+            self.fields['funcionario'].queryset = Funcionario.objects.all().order_by('nome_completo')
+

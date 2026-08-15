@@ -22,6 +22,7 @@ urlpatterns = [
     path('evento/<int:pk>/fechar/', views.evento_fechar, name='evento_fechar'),
     path('evento/<int:pk>/reabrir/', views.evento_reabrir, name='evento_reabrir'),
     path('evento/<int:pk>/marcar-pago/', views.evento_marcar_pago, name='evento_marcar_pago'),
+    path('evento/<int:evento_pk>/funcionario/<int:funcionario_pk>/toggle-pago/', views.evento_funcionario_toggle_pago, name='evento_funcionario_toggle_pago'),
     
     # Exportação
     path('<int:pk>/export/pdf/', views.folha_export_pdf, name='export_pdf'),

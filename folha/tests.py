@@ -5,9 +5,10 @@ from django.test import TestCase
 from django.core.exceptions import ValidationError
 from datetime import date
 from decimal import Decimal
+from validate_docbr import CPF
 
 from core.models import Setor, Funcao, TipoContrato, ProventoDesconto
-from funcionarios.models import Funcionario, Contrato, LancamentoFixo, Adiantamento
+from funcionarios.models import Funcionario, Contrato, LancamentoFixo, Adiantamento, Ferias
 from folha.models import FolhaPagamento, ItemFolha, ResumoFolhaFuncionario
 from folha.services import FolhaService, AdiantamentoService
 
@@ -63,6 +64,7 @@ class FolhaServiceTest(TestCase):
     """Testes para o FolhaService"""
 
     def setUp(self):
+        self.cpf_generator = CPF()
         # Cria dados básicos
         self.setor = Setor.objects.create(nome='TI')
         self.funcao = Funcao.objects.create(nome='Desenvolvedor')
@@ -70,11 +72,11 @@ class FolhaServiceTest(TestCase):
         
         self.funcionario = Funcionario.objects.create(
             nome_completo='João Silva',
-            cpf='12345678901',
+            cpf=self.cpf_generator.generate(),
             data_admissao=date(2023, 1, 1),
             funcao=self.funcao,
             setor=self.setor,
-            salario_base=Decimal('5000.00')
+            salario_base=Decimal('6000.00')
         )
         
         self.contrato = Contrato.objects.create(
@@ -137,10 +139,10 @@ class FolhaServiceTest(TestCase):
 
     def test_gerar_folha_com_adiantamento(self):
         """Testa geração de folha com adiantamento pendente"""
-        # Cria adiantamento
+        # Cria adiantamento no mês da competência
         adiantamento = Adiantamento.objects.create(
             funcionario=self.funcionario,
-            data_adiantamento=date.today(),
+            data_adiantamento=date(2024, 1, 15),
             valor=Decimal('1000.00'),
             status='P'
         )
@@ -150,6 +152,41 @@ class FolhaServiceTest(TestCase):
         # Verifica se o adiantamento foi descontado
         adiantamento.refresh_from_db()
         self.assertEqual(adiantamento.status, 'D')
+
+    def test_gerar_folha_com_ferias(self):
+        """Testa cálculo proporcional de férias e saldo de salário na folha"""
+        # Funcionário tem férias de 10 dias em Janeiro (10 a 19/01/2024)
+        Ferias.objects.create(
+            funcionario=self.funcionario,
+            periodo_aquisitivo_inicio=date(2023, 1, 1),
+            periodo_aquisitivo_fim=date(2023, 12, 31),
+            data_inicio_gozo=date(2024, 1, 10),
+            data_fim_gozo=date(2024, 1, 19),
+            status='EG'
+        )
+        folha = FolhaService.gerar_folha(mes=1, ano=2024)
+        
+        # Salário 6000 / 30 = 200/dia
+        # 20 dias trabalhados = 4000.00
+        # 10 dias férias = 2000.00
+        # 1/3 de férias = 666.67
+        item_salario = ItemFolha.objects.get(
+            folha_pagamento=folha,
+            provento_desconto__codigo_referencia='SALARIO'
+        )
+        self.assertEqual(item_salario.valor_lancado, Decimal('4000.00'))
+
+        item_ferias = ItemFolha.objects.get(
+            folha_pagamento=folha,
+            provento_desconto__codigo_referencia='FERIAS'
+        )
+        self.assertEqual(item_ferias.valor_lancado, Decimal('2000.00'))
+
+        item_terco = ItemFolha.objects.get(
+            folha_pagamento=folha,
+            provento_desconto__codigo_referencia='TERCO_FERIAS'
+        )
+        self.assertEqual(item_terco.valor_lancado, Decimal('666.67'))
 
     def test_adicionar_item_manual(self):
         """Testa adição de item manual à folha"""
@@ -178,12 +215,13 @@ class AdiantamentoServiceTest(TestCase):
     """Testes para o AdiantamentoService"""
 
     def setUp(self):
+        self.cpf_generator = CPF()
         setor = Setor.objects.create(nome='TI')
         funcao = Funcao.objects.create(nome='Desenvolvedor')
         
         self.funcionario1 = Funcionario.objects.create(
             nome_completo='João Silva',
-            cpf='12345678901',
+            cpf=self.cpf_generator.generate(),
             data_admissao=date(2023, 1, 1),
             funcao=funcao,
             setor=setor,
@@ -192,7 +230,7 @@ class AdiantamentoServiceTest(TestCase):
         
         self.funcionario2 = Funcionario.objects.create(
             nome_completo='Maria Santos',
-            cpf='98765432100',
+            cpf=self.cpf_generator.generate(),
             data_admissao=date(2023, 1, 1),
             funcao=funcao,
             setor=setor,
@@ -228,3 +266,4 @@ class AdiantamentoServiceTest(TestCase):
         
         adiantamento2 = Adiantamento.objects.get(funcionario=self.funcionario2)
         self.assertEqual(adiantamento2.valor, Decimal('800.00'))  # 20% de 4000
+

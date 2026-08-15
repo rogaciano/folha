@@ -5,21 +5,23 @@ from django.test import TestCase
 from django.core.exceptions import ValidationError
 from datetime import date, timedelta
 from decimal import Decimal
+from validate_docbr import CPF
 
 from core.models import Setor, Funcao, TipoContrato, ProventoDesconto
-from funcionarios.models import Funcionario, Contrato, LancamentoFixo, Adiantamento
+from funcionarios.models import Funcionario, Contrato, LancamentoFixo, Adiantamento, Ferias
 
 
 class FuncionarioModelTest(TestCase):
     """Testes para o modelo Funcionario"""
 
     def setUp(self):
+        self.cpf_generator = CPF()
         self.setor = Setor.objects.create(nome='TI')
         self.funcao = Funcao.objects.create(nome='Desenvolvedor')
         
         self.funcionario = Funcionario.objects.create(
             nome_completo='João Silva',
-            cpf='12345678901',
+            cpf=self.cpf_generator.generate(),
             data_admissao=date(2023, 1, 1),
             funcao=self.funcao,
             setor=self.setor,
@@ -55,13 +57,14 @@ class ContratoModelTest(TestCase):
     """Testes para o modelo Contrato"""
 
     def setUp(self):
+        self.cpf_generator = CPF()
         setor = Setor.objects.create(nome='TI')
         funcao = Funcao.objects.create(nome='Desenvolvedor')
         self.tipo_contrato = TipoContrato.objects.create(nome='CLT')
         
         self.funcionario = Funcionario.objects.create(
             nome_completo='João Silva',
-            cpf='12345678901',
+            cpf=self.cpf_generator.generate(),
             data_admissao=date(2023, 1, 1),
             funcao=funcao,
             setor=setor,
@@ -96,12 +99,13 @@ class LancamentoFixoModelTest(TestCase):
     """Testes para o modelo LancamentoFixo"""
 
     def setUp(self):
+        self.cpf_generator = CPF()
         setor = Setor.objects.create(nome='TI')
         funcao = Funcao.objects.create(nome='Desenvolvedor')
         
         self.funcionario = Funcionario.objects.create(
             nome_completo='João Silva',
-            cpf='12345678901',
+            cpf=self.cpf_generator.generate(),
             data_admissao=date(2023, 1, 1),
             funcao=funcao,
             setor=setor,
@@ -147,12 +151,13 @@ class AdiantamentoModelTest(TestCase):
     """Testes para o modelo Adiantamento"""
 
     def setUp(self):
+        self.cpf_generator = CPF()
         setor = Setor.objects.create(nome='TI')
         funcao = Funcao.objects.create(nome='Desenvolvedor')
         
         self.funcionario = Funcionario.objects.create(
             nome_completo='João Silva',
-            cpf='12345678901',
+            cpf=self.cpf_generator.generate(),
             data_admissao=date(2023, 1, 1),
             funcao=funcao,
             setor=setor,
@@ -178,3 +183,42 @@ class AdiantamentoModelTest(TestCase):
         )
         self.assertIn('João Silva', str(adiantamento))
         self.assertIn('500', str(adiantamento))
+
+
+class FeriasModelTest(TestCase):
+    """Testes para o modelo Ferias"""
+
+    def setUp(self):
+        self.cpf_generator = CPF()
+        self.setor = Setor.objects.create(nome='TI')
+        self.funcao = Funcao.objects.create(nome='Desenvolvedor')
+        
+        self.funcionario = Funcionario.objects.create(
+            nome_completo='João Silva',
+            cpf=self.cpf_generator.generate(),
+            data_admissao=date(2023, 1, 1),
+            funcao=self.funcao,
+            setor=self.setor,
+            salario_base=Decimal('5000.00')
+        )
+
+    def test_ferias_creation_and_status_sync(self):
+        """Testa criação de férias e sincronização automática do status do funcionário"""
+        ferias = Ferias.objects.create(
+            funcionario=self.funcionario,
+            periodo_aquisitivo_inicio=date(2023, 1, 1),
+            periodo_aquisitivo_fim=date(2023, 12, 31),
+            data_inicio_gozo=date(2024, 2, 1),
+            data_fim_gozo=date(2024, 2, 20),
+            status='EG'  # Em Gozo
+        )
+        self.assertEqual(ferias.dias_corridos, 20)
+        self.funcionario.refresh_from_db()
+        self.assertEqual(self.funcionario.status, 'F')
+
+        # Ao concluir férias, deve voltar para Ativo
+        ferias.status = 'CO'
+        ferias.save()
+        self.funcionario.refresh_from_db()
+        self.assertEqual(self.funcionario.status, 'A')
+

@@ -45,8 +45,8 @@ class ItemFolhaForm(forms.ModelForm):
         folha = kwargs.pop('folha', None)
         super().__init__(*args, **kwargs)
         
-        # Filtra apenas funcionários ativos
-        self.fields['funcionario'].queryset = Funcionario.objects.filter(status='A')
+        # Filtra funcionários que participam da folha e não estão inativos
+        self.fields['funcionario'].queryset = Funcionario.objects.filter(participa_folha=True).exclude(status='I').order_by('nome_completo')
         
         # Filtra apenas proventos/descontos ativos
         self.fields['provento_desconto'].queryset = ProventoDesconto.objects.filter(ativo=True)

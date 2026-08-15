@@ -316,6 +316,8 @@ class Adiantamento(TimeStampedModel):
         validators=[MinValueValidator(0.01)]
     )
     status = models.CharField('Status', max_length=1, choices=STATUS_CHOICES, default='P')
+    pago = models.BooleanField('Pago', default=False)
+    data_pagamento = models.DateField('Data do Pagamento', null=True, blank=True)
     observacoes = models.TextField('Observações', blank=True)
 
     class Meta:
@@ -359,21 +361,65 @@ class Ferias(TimeStampedModel):
     def __str__(self):
         return f"{self.funcionario.nome_completo} - {self.data_inicio_gozo} a {self.data_fim_gozo}"
 
+    @property
+    def periodo_inicio(self):
+        """Alias para periodo_aquisitivo_inicio"""
+        return self.periodo_aquisitivo_inicio
+
+    @property
+    def periodo_fim(self):
+        """Alias para periodo_aquisitivo_fim"""
+        return self.periodo_aquisitivo_fim
+
     def clean(self):
         """Validações"""
-        if self.data_inicio_gozo > self.data_fim_gozo:
-            raise ValidationError('Data de início não pode ser posterior à data de fim')
+        if self.data_inicio_gozo and self.data_fim_gozo:
+            if self.data_inicio_gozo > self.data_fim_gozo:
+                raise ValidationError('Data de início não pode ser posterior à data de fim')
+            delta = (self.data_fim_gozo - self.data_inicio_gozo).days + 1
+            self.dias_corridos = delta
         
-        if self.periodo_aquisitivo_inicio > self.periodo_aquisitivo_fim:
-            raise ValidationError('Período aquisitivo inválido')
+        if self.periodo_aquisitivo_inicio and self.periodo_aquisitivo_fim:
+            if self.periodo_aquisitivo_inicio > self.periodo_aquisitivo_fim:
+                raise ValidationError('Período aquisitivo inválido')
+
+    def sincronizar_status_funcionario(self):
+        """Atualiza o status do funcionário de acordo com o gozo de férias"""
+        if not self.funcionario_id:
+            return
         
-        # Calcula os dias corridos
-        delta = (self.data_fim_gozo - self.data_inicio_gozo).days + 1
-        self.dias_corridos = delta
+        hoje = timezone.now().date()
+        # Se as férias estão em gozo ou se a data de hoje está dentro do período de gozo com status EG
+        if self.status == 'EG' or (self.data_inicio_gozo and self.data_fim_gozo and self.data_inicio_gozo <= hoje <= self.data_fim_gozo and self.status != 'CA'):
+            if self.funcionario.status != 'F':
+                self.funcionario.status = 'F'
+                self.funcionario.save(update_fields=['status'])
+        elif self.status in ['CO', 'CA']:
+            # Se não tem outras férias em gozo hoje, volta para Ativo
+            outras_em_gozo = Ferias.objects.filter(
+                funcionario=self.funcionario,
+                status='EG'
+            ).exclude(pk=self.pk).exists()
+            if not outras_em_gozo and self.funcionario.status == 'F':
+                self.funcionario.status = 'A'
+                self.funcionario.save(update_fields=['status'])
 
     def save(self, *args, **kwargs):
         self.full_clean()
         super().save(*args, **kwargs)
+        self.sincronizar_status_funcionario()
+
+    def delete(self, *args, **kwargs):
+        funcionario = self.funcionario
+        super().delete(*args, **kwargs)
+        if funcionario and funcionario.status == 'F':
+            outras_em_gozo = Ferias.objects.filter(
+                funcionario=funcionario,
+                status='EG'
+            ).exists()
+            if not outras_em_gozo:
+                funcionario.status = 'A'
+                funcionario.save(update_fields=['status'])
 
     @classmethod
     def calcular_periodo_aquisitivo(cls, data_admissao):

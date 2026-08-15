@@ -265,7 +265,7 @@ class EventoPagamento(TimeStampedModel):
 
     def calcular_valor_total(self):
         """Recalcula o valor total do evento"""
-        self.valor_total = self.total_liquido
+        self.valor_total = self.total_liquido.quantize(Decimal('0.01'))
         self.save(update_fields=['valor_total'])
 
     def fechar_evento(self):
@@ -348,6 +348,10 @@ class ItemFolha(TimeStampedModel):
         related_name='itens_desconto',
         help_text='Referência ao adiantamento original (quando aplicável)'
     )
+
+    # Status de pagamento do item no evento
+    pago = models.BooleanField('Pago', default=False)
+    data_pagamento = models.DateField('Data do Pagamento', null=True, blank=True)
 
     class Meta:
         verbose_name = 'Item da Folha'

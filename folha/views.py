@@ -7,7 +7,7 @@ from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.views.decorators.http import require_POST
 
-from .models import FolhaPagamento, ItemFolha, ResumoFolhaFuncionario
+from .models import FolhaPagamento, EventoPagamento, ItemFolha, ResumoFolhaFuncionario
 from .forms import GerarFolhaForm, ItemFolhaForm, EventoAdiantamentoForm, EventoDecimoTerceiroForm
 from .services import FolhaService
 
@@ -25,56 +25,228 @@ def folha_list(request):
 
 @login_required
 def folha_detail(request, pk):
-    """Detalhes da folha de pagamento"""
+    """Detalhes da folha de pagamento com suporte a visualização consolidada ou por evento"""
     folha = get_object_or_404(FolhaPagamento, pk=pk)
     filtro_pagamento = request.GET.get('pagamento', 'todos')
+    evento_id = request.GET.get('evento', 'consolidado')
     
-    # Busca resumos por funcionário
-    resumos = ResumoFolhaFuncionario.objects.filter(
-        folha_pagamento=folha
-    ).select_related('funcionario').order_by('funcionario__nome_completo')
-
-    if filtro_pagamento == 'pagos':
-        resumos = resumos.filter(pago=True)
-    elif filtro_pagamento == 'pendentes':
-        resumos = resumos.filter(pago=False)
-    
-    # Busca itens da folha agrupados por funcionário
-    itens = ItemFolha.objects.filter(
-        folha_pagamento=folha
-    ).select_related('funcionario', 'provento_desconto').order_by(
-        'funcionario__nome_completo', 'provento_desconto__tipo', 'provento_desconto__nome'
-    )
     eventos = folha.get_eventos_pagamento()
+    evento_selecionado = None
+    resumo_evento_list = []
+
+    if evento_id and evento_id != 'consolidado':
+        try:
+            evento_selecionado = folha.eventos.get(pk=int(evento_id))
+        except (EventoPagamento.DoesNotExist, ValueError):
+            evento_selecionado = None
+
+    if evento_selecionado:
+        from decimal import Decimal
+        if evento_selecionado.tipo_evento == 'AD':
+            # Evento de Adiantamento: busca diretamente da tabela de Adiantamentos
+            from funcionarios.models import Adiantamento
+            adiantamentos = Adiantamento.objects.filter(
+                data_adiantamento__month=folha.mes,
+                data_adiantamento__year=folha.ano
+            ).select_related('funcionario').order_by('funcionario__nome_completo')
+
+            for ad in adiantamentos:
+                resumo_evento_list.append({
+                    'funcionario': ad.funcionario,
+                    'total_proventos': ad.valor,
+                    'total_descontos': Decimal('0.00'),
+                    'valor_liquido': ad.valor,
+                    'pago': ad.pago,
+                    'data_pagamento': ad.data_pagamento,
+                    'itens': [],
+                    'adiantamento_id': ad.pk,
+                })
+        else:
+            # Demais eventos (Pagamento Final, 13º, Férias): agrupa itens do evento por funcionário
+            itens_evento = evento_selecionado.itens.select_related('funcionario', 'provento_desconto').order_by('funcionario__nome_completo')
+            from itertools import groupby
+
+            for func, func_itens in groupby(itens_evento, key=lambda i: i.funcionario):
+                itens_list = list(func_itens)
+                proventos = sum((i.valor_lancado for i in itens_list if i.provento_desconto.tipo == 'P'), Decimal('0.00'))
+                descontos = sum((i.valor_lancado for i in itens_list if i.provento_desconto.tipo == 'D'), Decimal('0.00'))
+                liquido = proventos - descontos
+                pago = len(itens_list) > 0 and all(i.pago for i in itens_list)
+                data_pagamento = next((i.data_pagamento for i in itens_list if i.data_pagamento), None)
+
+                resumo_evento_list.append({
+                    'funcionario': func,
+                    'total_proventos': proventos,
+                    'total_descontos': descontos,
+                    'valor_liquido': liquido,
+                    'pago': pago,
+                    'data_pagamento': data_pagamento,
+                    'itens': itens_list,
+                })
+
+        total_funcionarios = len(resumo_evento_list)
+        total_pagos = sum(1 for r in resumo_evento_list if r['pago'])
+        total_pendentes = total_funcionarios - total_pagos
+
+        if filtro_pagamento == 'pagos':
+            resumo_evento_list = [r for r in resumo_evento_list if r['pago']]
+        elif filtro_pagamento == 'pendentes':
+            resumo_evento_list = [r for r in resumo_evento_list if not r['pago']]
+
+        resumos = None
+    else:
+        # Visão Consolidada da Folha
+        resumos = ResumoFolhaFuncionario.objects.filter(
+            folha_pagamento=folha
+        ).select_related('funcionario').order_by('funcionario__nome_completo')
+
+        total_funcionarios = folha.resumos.count()
+        total_pagos = folha.resumos.filter(pago=True).count()
+        total_pendentes = total_funcionarios - total_pagos
+
+        if filtro_pagamento == 'pagos':
+            resumos = resumos.filter(pago=True)
+        elif filtro_pagamento == 'pendentes':
+            resumos = resumos.filter(pago=False)
+
+    # Busca itens da folha para o detalhamento completo
+    if evento_selecionado and evento_selecionado.tipo_evento != 'AD':
+        itens = evento_selecionado.itens.select_related('funcionario', 'provento_desconto').order_by(
+            'funcionario__nome_completo', 'provento_desconto__tipo', 'provento_desconto__nome'
+        )
+    else:
+        itens = ItemFolha.objects.filter(
+            folha_pagamento=folha
+        ).select_related('funcionario', 'provento_desconto').order_by(
+            'funcionario__nome_completo', 'provento_desconto__tipo', 'provento_desconto__nome'
+        )
     
     context = {
         'folha': folha,
         'resumos': resumos,
+        'resumo_evento_list': resumo_evento_list,
+        'evento_selecionado': evento_selecionado,
+        'evento_id': evento_id,
         'itens': itens,
         'eventos': eventos,
         'filtro_pagamento': filtro_pagamento,
-        'total_funcionarios': folha.resumos.count(),
-        'total_pagos': folha.resumos.filter(pago=True).count(),
+        'total_funcionarios': total_funcionarios,
+        'total_pagos': total_pagos,
+        'total_pendentes': total_pendentes,
     }
     return render(request, 'folha/folha_detail.html', context)
 
 
 @login_required
 @require_POST
+def evento_funcionario_toggle_pago(request, evento_pk, funcionario_pk):
+    """Marca ou desmarca o pagamento de um funcionário em um evento específico"""
+    from django.utils import timezone
+    evento = get_object_or_404(EventoPagamento.objects.select_related('folha_pagamento'), pk=evento_pk)
+    folha = evento.folha_pagamento
+    from funcionarios.models import Funcionario, Adiantamento
+    funcionario = get_object_or_404(Funcionario, pk=funcionario_pk)
+
+    if evento.tipo_evento == 'AD':
+        ad = Adiantamento.objects.filter(
+            funcionario=funcionario,
+            data_adiantamento__month=folha.mes,
+            data_adiantamento__year=folha.ano
+        ).first()
+
+        if not ad:
+            messages.error(request, 'Nenhum adiantamento encontrado para este funcionário nesta competência.')
+            return redirect(f"{redirect('folha:detail', pk=folha.pk).url}?evento={evento.pk}")
+
+        novo_status_pago = not ad.pago
+        ad.pago = novo_status_pago
+        ad.data_pagamento = timezone.now().date() if novo_status_pago else None
+        ad.save(update_fields=['pago', 'data_pagamento'])
+
+        # Verifica se todos os adiantamentos do mês foram pagos
+        todos_ad_pagos = not Adiantamento.objects.filter(
+            data_adiantamento__month=folha.mes,
+            data_adiantamento__year=folha.ano,
+            pago=False
+        ).exists()
+
+        if todos_ad_pagos:
+            evento.status = 'P'
+            evento.data_pagamento = timezone.now().date()
+        else:
+            if evento.status == 'P':
+                evento.status = 'F'
+                evento.data_pagamento = None
+        evento.save(update_fields=['status', 'data_pagamento'])
+    else:
+        itens = ItemFolha.objects.filter(evento_pagamento=evento, funcionario=funcionario)
+        if not itens.exists():
+            messages.error(request, 'Nenhum lançamento encontrado para este funcionário no evento.')
+            return redirect(f"{redirect('folha:detail', pk=folha.pk).url}?evento={evento.pk}")
+
+        todos_pagos = all(i.pago for i in itens)
+        novo_status_pago = not todos_pagos
+        data_pagamento = timezone.now().date() if novo_status_pago else None
+
+        # Atualiza todos os itens do funcionário no evento
+        itens.update(pago=novo_status_pago, data_pagamento=data_pagamento)
+
+        # Verifica se todos os itens do evento foram pagos para atualizar o status do evento
+        todos_itens_evento_pagos = not evento.itens.filter(pago=False).exists()
+        if todos_itens_evento_pagos:
+            evento.status = 'P'
+            evento.data_pagamento = timezone.now().date()
+            evento.save(update_fields=['status', 'data_pagamento'])
+        else:
+            if evento.status == 'P':
+                evento.status = 'F'
+                evento.data_pagamento = None
+                evento.save(update_fields=['status', 'data_pagamento'])
+
+    # Sincroniza o status consolidado do funcionário na folha
+    todos_itens_func_na_folha_pagos = not ItemFolha.objects.filter(folha_pagamento=folha, funcionario=funcionario, pago=False).exists()
+    resumo_func = ResumoFolhaFuncionario.objects.filter(folha_pagamento=folha, funcionario=funcionario).first()
+    if resumo_func:
+        if todos_itens_func_na_folha_pagos:
+            resumo_func.pago = True
+            resumo_func.data_pagamento = timezone.now().date()
+        else:
+            resumo_func.pago = False
+            resumo_func.data_pagamento = None
+        resumo_func.save(update_fields=['pago', 'data_pagamento'])
+
+    folha.sincronizar_pagamentos_individuais()
+
+    if novo_status_pago:
+        messages.success(request, f'Pagamento de {funcionario.nome_completo} em {evento.descricao} marcado como pago.')
+    else:
+        messages.success(request, f'Pagamento de {funcionario.nome_completo} em {evento.descricao} desmarcado.')
+
+    filtro_pagamento = request.GET.get('pagamento') or request.POST.get('pagamento')
+    query_params = f"?evento={evento.pk}"
+    if filtro_pagamento in ['pagos', 'pendentes']:
+        query_params += f"&pagamento={filtro_pagamento}"
+
+    return redirect(f"{redirect('folha:detail', pk=folha.pk).url}{query_params}")
+
+
+@login_required
+@require_POST
 def resumo_toggle_pago(request, pk):
-    """Marca ou desmarca o pagamento individual de um funcionário na folha"""
+    """Marca ou desmarca o pagamento consolidado de um funcionário na folha"""
     resumo = get_object_or_404(ResumoFolhaFuncionario.objects.select_related('folha_pagamento', 'funcionario'), pk=pk)
     folha = resumo.folha_pagamento
 
-    if folha.status == 'R':
-        messages.error(request, 'Feche a folha antes de marcar pagamentos individuais.')
-        return redirect('folha:detail', pk=folha.pk)
-
     if resumo.pago:
         resumo.desmarcar_pagamento()
+        # Desmarca itens
+        ItemFolha.objects.filter(folha_pagamento=folha, funcionario=resumo.funcionario).update(pago=False, data_pagamento=None)
         messages.success(request, f'Pagamento de {resumo.funcionario.nome_completo} desmarcado.')
     else:
         resumo.marcar_como_pago()
+        # Marca itens
+        from django.utils import timezone
+        ItemFolha.objects.filter(folha_pagamento=folha, funcionario=resumo.funcionario).update(pago=True, data_pagamento=timezone.now().date())
         messages.success(request, f'Pagamento de {resumo.funcionario.nome_completo} marcado com sucesso.')
 
     filtro_pagamento = request.GET.get('pagamento') or request.POST.get('pagamento')
@@ -313,10 +485,20 @@ def evento_marcar_pago(request, pk):
 
 @login_required
 def folha_export_pdf(request, pk):
-    """Exportar folha para PDF"""
-    from .exports import export_folha_pdf
+    """Exportar relatório de pagamento / conferência para PDF"""
+    from .exports import export_relatorio_pagamento_pdf
     folha = get_object_or_404(FolhaPagamento, pk=pk)
-    return export_folha_pdf(folha)
+    evento_id = request.GET.get('evento')
+    filtro_pagamento = request.GET.get('pagamento', 'todos')
+    
+    evento = None
+    if evento_id and evento_id != 'consolidado':
+        try:
+            evento = folha.eventos.get(pk=int(evento_id))
+        except (EventoPagamento.DoesNotExist, ValueError):
+            evento = None
+            
+    return export_relatorio_pagamento_pdf(folha, evento=evento, filtro_pagamento=filtro_pagamento)
 
 
 @login_required

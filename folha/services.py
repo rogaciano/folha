@@ -173,6 +173,9 @@ class FolhaService:
                 qs = qs.filter(**filtros)
                 funcionarios = list(qs)
 
+            # Busca se já existe um evento de Pagamento Final em rascunho
+            evento_pf = folha.eventos.filter(tipo_evento='PF', status='R').first()
+
             total_evento = Decimal('0')
             for funcionario in funcionarios:
                 if valor:
@@ -184,17 +187,29 @@ class FolhaService:
                 valor_adiantamento = valor_adiantamento.quantize(Decimal('0.01'))
 
                 from funcionarios.models import Adiantamento as AdModel
-                AdModel.objects.create(
+                adiantamento_obj = AdModel.objects.create(
                     funcionario=funcionario,
                     data_adiantamento=data_evento,
                     valor=valor_adiantamento,
                     status='P',
                     observacoes=descricao,
                 )
+
+                # Se existe evento PF em rascunho, lança o desconto nele
+                if evento_pf:
+                    FolhaService._lancar_adiantamentos(folha, evento_pf, funcionario)
+
                 total_evento += valor_adiantamento
 
             evento.valor_total = total_evento.quantize(Decimal('0.01'))
             evento.save(update_fields=['valor_total'])
+
+            if evento_pf:
+                evento_pf.calcular_valor_total()
+
+            # Atualiza os resumos da folha
+            for funcionario in funcionarios:
+                FolhaService._criar_resumo_funcionario(folha, funcionario)
 
             return evento
 
@@ -265,30 +280,165 @@ class FolhaService:
             return evento
     
     @staticmethod
+    def criar_evento_ferias(
+        folha: FolhaPagamento,
+        funcionario: Funcionario,
+        data_evento: date,
+        dias_ferias: int = 30,
+        descricao: str = None,
+    ) -> EventoPagamento:
+        """
+        Cria um evento de pagamento específico de Férias (FE) para um funcionário.
+        Calcula os proventos de férias proporcionais aos dias e o 1/3 Constitucional.
+        """
+        if folha.status != 'R':
+            raise ValidationError('Apenas folhas em rascunho podem receber novos eventos')
+
+        if not descricao:
+            descricao = f"Férias {dias_ferias} dias - {funcionario.nome_completo}"
+
+        with transaction.atomic():
+            evento = EventoPagamento.objects.create(
+                folha_pagamento=folha,
+                tipo_evento='FE',
+                descricao=descricao,
+                data_evento=data_evento,
+                status='R',
+            )
+
+            provento_ferias, _ = ProventoDesconto.objects.get_or_create(
+                codigo_referencia='FERIAS',
+                defaults={'nome': 'Férias', 'tipo': 'P', 'impacto': 'F'}
+            )
+            provento_terco, _ = ProventoDesconto.objects.get_or_create(
+                codigo_referencia='TERCO_FERIAS',
+                defaults={'nome': '1/3 Constitucional de Férias', 'tipo': 'P', 'impacto': 'F'}
+            )
+
+            valor_dia = funcionario.salario_base / Decimal('30')
+            valor_ferias = (valor_dia * Decimal(str(dias_ferias))).quantize(Decimal('0.01'))
+            valor_terco = (valor_ferias / Decimal('3')).quantize(Decimal('0.01'))
+
+            ItemFolha.objects.create(
+                folha_pagamento=folha,
+                evento_pagamento=evento,
+                funcionario=funcionario,
+                provento_desconto=provento_ferias,
+                valor_lancado=valor_ferias,
+                justificativa=f'Férias ({dias_ferias} dias)',
+            )
+
+            ItemFolha.objects.create(
+                folha_pagamento=folha,
+                evento_pagamento=evento,
+                funcionario=funcionario,
+                provento_desconto=provento_terco,
+                valor_lancado=valor_terco,
+                justificativa=f'1/3 Constitucional sobre férias ({dias_ferias} dias)',
+            )
+
+            evento.calcular_valor_total()
+            FolhaService._criar_resumo_funcionario(folha, funcionario)
+            return evento
+
+    @staticmethod
     def _lancar_salario_base(folha: FolhaPagamento, evento: EventoPagamento, funcionario: Funcionario):
-        """Lança o salário base do funcionário na folha"""
-        try:
-            provento_salario = ProventoDesconto.objects.get(
-                codigo_referencia='SALARIO',
-                tipo='P'
-            )
-        except ProventoDesconto.DoesNotExist:
-            # Cria o provento de salário se não existir
-            provento_salario = ProventoDesconto.objects.create(
-                nome='Salário Base',
-                codigo_referencia='SALARIO',
-                tipo='P',
-                impacto='F'
-            )
-        
-        ItemFolha.objects.create(
-            folha_pagamento=folha,
-            evento_pagamento=evento,
-            funcionario=funcionario,
-            provento_desconto=provento_salario,
-            valor_lancado=funcionario.salario_base,
-            justificativa='Salário base mensal'
+        """
+        Lança a remuneração base do funcionário na folha.
+        Se o funcionário possui férias no mês da competência, calcula proporcionalmente:
+        - Saldo de Salário (dias trabalhados)
+        - Férias Gozadas (dias em gozo no mês)
+        - 1/3 Constitucional de Férias
+        """
+        import calendar
+        from funcionarios.models import Ferias
+
+        ultimo_dia_mes = calendar.monthrange(folha.ano, folha.mes)[1]
+        primeiro_dia = date(folha.ano, folha.mes, 1)
+        ultimo_dia = date(folha.ano, folha.mes, ultimo_dia_mes)
+
+        # Proventos necessários
+        provento_salario, _ = ProventoDesconto.objects.get_or_create(
+            codigo_referencia='SALARIO',
+            defaults={'nome': 'Salário Base', 'tipo': 'P', 'impacto': 'F'}
         )
+
+        # Verifica se há férias no mês (não canceladas)
+        ferias_no_mes = Ferias.objects.filter(
+            funcionario=funcionario,
+            data_inicio_gozo__lte=ultimo_dia,
+            data_fim_gozo__gte=primeiro_dia,
+        ).exclude(status='CA')
+
+        dias_ferias_mes = 0
+        if ferias_no_mes.exists():
+            for f in ferias_no_mes:
+                inicio = max(f.data_inicio_gozo, primeiro_dia)
+                fim = min(f.data_fim_gozo, ultimo_dia)
+                dias = (fim - inicio).days + 1
+                dias_ferias_mes += dias
+
+        # Limita ao mês comercial de 30 dias
+        if dias_ferias_mes >= 30 or (dias_ferias_mes >= ultimo_dia_mes and ultimo_dia_mes in [28, 29, 31]):
+            dias_ferias_mes = 30
+            dias_trabalhados = 0
+        else:
+            dias_trabalhados = max(0, 30 - dias_ferias_mes)
+
+        if dias_ferias_mes > 0:
+            valor_dia = funcionario.salario_base / Decimal('30')
+            
+            # Se trabalhou alguns dias no mês
+            if dias_trabalhados > 0:
+                valor_trabalhado = (valor_dia * Decimal(str(dias_trabalhados))).quantize(Decimal('0.01'))
+                ItemFolha.objects.create(
+                    folha_pagamento=folha,
+                    evento_pagamento=evento,
+                    funcionario=funcionario,
+                    provento_desconto=provento_salario,
+                    valor_lancado=valor_trabalhado,
+                    justificativa=f'Saldo de Salário ({dias_trabalhados} dias trabalhados)'
+                )
+
+            # Provento Férias Gozadas no mês
+            provento_ferias, _ = ProventoDesconto.objects.get_or_create(
+                codigo_referencia='FERIAS',
+                defaults={'nome': 'Férias Gozadas', 'tipo': 'P', 'impacto': 'F'}
+            )
+            valor_ferias = (valor_dia * Decimal(str(dias_ferias_mes))).quantize(Decimal('0.01'))
+            ItemFolha.objects.create(
+                folha_pagamento=folha,
+                evento_pagamento=evento,
+                funcionario=funcionario,
+                provento_desconto=provento_ferias,
+                valor_lancado=valor_ferias,
+                justificativa=f'Férias no mês ({dias_ferias_mes} dias)'
+            )
+
+            # Provento 1/3 Constitucional de Férias
+            provento_terco, _ = ProventoDesconto.objects.get_or_create(
+                codigo_referencia='TERCO_FERIAS',
+                defaults={'nome': '1/3 Constitucional de Férias', 'tipo': 'P', 'impacto': 'F'}
+            )
+            valor_terco = (valor_ferias / Decimal('3')).quantize(Decimal('0.01'))
+            ItemFolha.objects.create(
+                folha_pagamento=folha,
+                evento_pagamento=evento,
+                funcionario=funcionario,
+                provento_desconto=provento_terco,
+                valor_lancado=valor_terco,
+                justificativa=f'1/3 Constitucional de Férias ({dias_ferias_mes} dias)'
+            )
+        else:
+            # Mês trabalhado normal (30 dias)
+            ItemFolha.objects.create(
+                folha_pagamento=folha,
+                evento_pagamento=evento,
+                funcionario=funcionario,
+                provento_desconto=provento_salario,
+                valor_lancado=funcionario.salario_base,
+                justificativa='Salário base mensal'
+            )
     
     @staticmethod
     def _lancar_lancamentos_fixos_gerais(folha: FolhaPagamento, evento: EventoPagamento,
@@ -370,9 +520,11 @@ class FolhaService:
     
     @staticmethod
     def _lancar_adiantamentos(folha: FolhaPagamento, evento: EventoPagamento, funcionario: Funcionario):
-        """Lança adiantamentos pendentes como descontos na folha"""
+        """Lança adiantamentos pendentes da competência como descontos na folha"""
         adiantamentos_pendentes = Adiantamento.objects.filter(
             funcionario=funcionario,
+            data_adiantamento__month=folha.mes,
+            data_adiantamento__year=folha.ano,
             status='P'
         )
         

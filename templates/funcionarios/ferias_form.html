@@ -41,19 +41,19 @@
                 <!-- Período Aquisitivo -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Período Início *</label>
-                    {% render_field form.periodo_inicio class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" type="date" %}
+                    {% render_field form.periodo_aquisitivo_inicio class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" type="date" %}
                     <p class="mt-1 text-xs text-gray-500">Início do período aquisitivo</p>
-                    {% if form.periodo_inicio.errors %}
-                        <p class="mt-1 text-sm text-red-600">{{ form.periodo_inicio.errors.0 }}</p>
+                    {% if form.periodo_aquisitivo_inicio.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.periodo_aquisitivo_inicio.errors.0 }}</p>
                     {% endif %}
                 </div>
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Período Fim *</label>
-                    {% render_field form.periodo_fim class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" type="date" %}
+                    {% render_field form.periodo_aquisitivo_fim class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" type="date" %}
                     <p class="mt-1 text-xs text-gray-500">Fim do período aquisitivo (12 meses)</p>
-                    {% if form.periodo_fim.errors %}
-                        <p class="mt-1 text-sm text-red-600">{{ form.periodo_fim.errors.0 }}</p>
+                    {% if form.periodo_aquisitivo_fim.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.periodo_aquisitivo_fim.errors.0 }}</p>
                     {% endif %}
                 </div>
 
