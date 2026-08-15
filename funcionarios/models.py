@@ -156,7 +156,8 @@ class Contrato(TimeStampedModel):
     tipo_contrato = models.ForeignKey(
         TipoContrato,
         on_delete=models.PROTECT,
-        verbose_name='Tipo de Contrato'
+        verbose_name='Tipo de Contrato',
+        related_name='contratos'
     )
     data_inicio = models.DateField('Data de Início')
     data_fim = models.DateField('Data de Fim', null=True, blank=True)
