@@ -40,6 +40,7 @@
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Funcionário</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Período Aquisitivo</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Período de Gozo</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total Férias + 1/3</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                     <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
                 </tr>
@@ -49,19 +50,25 @@
                 <tr class="hover:bg-gray-50">
                     <td class="px-6 py-4 whitespace-nowrap">
                         <div class="text-sm font-medium text-gray-900">{{ ferias.funcionario.nome_completo }}</div>
-                        <div class="text-sm text-gray-500">{{ ferias.funcionario.funcao.nome }}</div>
+                        <div class="text-xs text-gray-500">{{ ferias.funcionario.funcao.nome }} • Salário: R$ {{ ferias.funcionario.salario_base|floatformat:2 }}</div>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {{ ferias.periodo_inicio|date:"d/m/Y" }} a {{ ferias.periodo_fim|date:"d/m/Y" }}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {% if ferias.data_inicio_gozo %}
-                            {{ ferias.data_inicio_gozo|date:"d/m/Y" }}
-                            {% if ferias.data_fim_gozo %}
-                                a {{ ferias.data_fim_gozo|date:"d/m/Y" }}
-                            {% endif %}
+                            <div class="font-medium text-gray-900">{{ ferias.data_inicio_gozo|date:"d/m/Y" }} a {{ ferias.data_fim_gozo|date:"d/m/Y" }}</div>
+                            <div class="text-xs text-blue-600 font-semibold">{{ ferias.dias_corridos }} dias de descanso</div>
                         {% else %}
                             <span class="text-gray-400">Não programado</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-bold text-green-700">
+                        {% if ferias.data_inicio_gozo %}
+                            R$ {{ ferias.total_bruto|floatformat:2 }}
+                            <div class="text-xs font-normal text-gray-500">Pagar até {{ ferias.data_limite_pagamento|date:"d/m/Y" }}</div>
+                        {% else %}
+                            -
                         {% endif %}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
@@ -76,7 +83,7 @@
                         {% endif %}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <a href="{% url 'funcionarios:ferias_update' ferias.pk %}" class="text-blue-600 hover:text-blue-900 mr-3">
+                        <a href="{% url 'funcionarios:ferias_update' ferias.pk %}" class="text-blue-600 hover:text-blue-900 mr-3 font-semibold">
                             Editar
                         </a>
                         <a href="{% url 'funcionarios:detail' ferias.funcionario.pk %}" class="text-gray-600 hover:text-gray-900">
@@ -86,7 +93,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="5" class="px-6 py-4 text-center text-sm text-gray-500">Nenhuma férias encontrada.</td>
+                    <td colspan="6" class="px-6 py-4 text-center text-sm text-gray-500">Nenhuma férias encontrada.</td>
                 </tr>
                 {% endfor %}
             </tbody>

@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }} - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-6">
+    <div class="flex items-center justify-between">
+        <div class="flex items-center">
+            <a href="{% url 'core:setor_list' %}" class="mr-4 text-gray-500 hover:text-gray-700">
+                <i data-lucide="arrow-left" class="w-5 h-5"></i>
+            </a>
+            <h1 class="text-2xl font-bold text-gray-900">{{ title }}</h1>
+        </div>
+    </div>
+
+    <div class="bg-white shadow-sm rounded-xl p-6 border border-gray-100">
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Nome do Setor *</label>
+                {{ form.nome }}
+                {% if form.nome.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.nome.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Chefe / Responsável pelo Setor</label>
+                {{ form.chefe }}
+                <p class="mt-1 text-xs text-gray-500">Funcionário que chefia este departamento</p>
+                {% if form.chefe.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.chefe.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
+                {{ form.descricao }}
+                {% if form.descricao.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.descricao.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <div class="flex items-center">
+                {{ form.ativo }}
+                <label for="{{ form.ativo.id_for_label }}" class="ml-2 block text-sm font-medium text-gray-700">
+                    Setor Ativo
+                </label>
+            </div>
+
+            <div class="flex justify-end space-x-3 border-t border-gray-100 pt-5">
+                <a href="{% url 'core:setor_list' %}" class="px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                    Cancelar
+                </a>
+                <button type="submit" class="px-5 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 shadow-sm">
+                    {{ button_text }}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

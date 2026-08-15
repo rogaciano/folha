@@ -371,6 +371,41 @@ class Ferias(TimeStampedModel):
         """Alias para periodo_aquisitivo_fim"""
         return self.periodo_aquisitivo_fim
 
+    @property
+    def valor_dia(self):
+        """Valor da diária de salário"""
+        from decimal import Decimal
+        if not self.funcionario_id or not self.funcionario.salario_base:
+            return Decimal('0.00')
+        return (self.funcionario.salario_base / Decimal('30')).quantize(Decimal('0.01'))
+
+    @property
+    def valor_ferias(self):
+        """Valor proporcional dos dias de férias"""
+        from decimal import Decimal
+        if not self.dias_corridos:
+            return Decimal('0.00')
+        return (self.valor_dia * Decimal(str(self.dias_corridos))).quantize(Decimal('0.01'))
+
+    @property
+    def valor_terco(self):
+        """Valor do 1/3 Constitucional de férias"""
+        from decimal import Decimal
+        return (self.valor_ferias / Decimal('3')).quantize(Decimal('0.01'))
+
+    @property
+    def total_bruto(self):
+        """Total bruto das férias (Férias + 1/3)"""
+        return self.valor_ferias + self.valor_terco
+
+    @property
+    def data_limite_pagamento(self):
+        """Data limite legal de pagamento (2 dias antes do início do gozo)"""
+        if self.data_inicio_gozo:
+            from datetime import timedelta
+            return self.data_inicio_gozo - timedelta(days=2)
+        return None
+
     def clean(self):
         """Validações"""
         if self.data_inicio_gozo and self.data_fim_gozo:

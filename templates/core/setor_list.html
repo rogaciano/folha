@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+
+{% block title %}Setores - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">Setores / Departamentos</h1>
+            <p class="mt-1 text-sm text-gray-500">Gerenciamento dos setores e departamentos da empresa</p>
+        </div>
+        <a href="{% url 'core:setor_create' %}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700">
+            <i data-lucide="plus" class="w-4 h-4 mr-2"></i>
+            Novo Setor
+        </a>
+    </div>
+
+    <!-- Filtros -->
+    <div class="bg-white shadow rounded-lg p-4">
+        <form method="get" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+                <input type="text" name="busca" value="{{ busca }}" placeholder="Buscar por nome ou descrição..." 
+                       class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm">
+            </div>
+            <div>
+                <select name="status" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm">
+                    <option value="">Todos os status</option>
+                    <option value="ativo" {% if status_filter == 'ativo' %}selected{% endif %}>Apenas Ativos</option>
+                    <option value="inativo" {% if status_filter == 'inativo' %}selected{% endif %}>Apenas Inativos</option>
+                </select>
+            </div>
+            <div class="flex gap-2">
+                <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                    <i data-lucide="search" class="w-4 h-4 mr-1.5"></i>
+                    Filtrar
+                </button>
+                {% if busca or status_filter %}
+                <a href="{% url 'core:setor_list' %}" class="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                    Limpar
+                </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+
+    <!-- Tabela -->
+    <div class="bg-white shadow rounded-lg overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Setor</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Chefe / Responsável</th>
+                    <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Funcionários Ativos</th>
+                    <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% for setor in setores %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4">
+                        <div class="text-sm font-semibold text-gray-900">{{ setor.nome }}</div>
+                        {% if setor.descricao %}
+                        <div class="text-xs text-gray-500 mt-0.5">{{ setor.descricao }}</div>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        {% if setor.chefe %}
+                            <div class="flex items-center">
+                                <i data-lucide="user-check" class="w-4 h-4 text-blue-500 mr-1.5"></i>
+                                {{ setor.chefe.nome_completo }}
+                            </div>
+                        {% else %}
+                            <span class="text-gray-400 italic">Não definido</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium text-gray-700">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
+                            {{ setor.total_funcionarios }} colaborador(es)
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-center">
+                        {% if setor.ativo %}
+                            <span class="px-2.5 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                Ativo
+                            </span>
+                        {% else %}
+                            <span class="px-2.5 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                Inativo
+                            </span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <a href="{% url 'core:setor_update' setor.pk %}" class="text-blue-600 hover:text-blue-900 mr-3">
+                            <i data-lucide="edit" class="w-4 h-4 inline"></i> Editar
+                        </a>
+                        <a href="{% url 'core:setor_delete' setor.pk %}" class="text-red-600 hover:text-red-900">
+                            <i data-lucide="trash-2" class="w-4 h-4 inline"></i> Excluir
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="px-6 py-8 text-center text-gray-500">
+                        <i data-lucide="building" class="w-8 h-8 mx-auto text-gray-400 mb-2"></i>
+                        Nenhum setor encontrado.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -33,23 +33,23 @@
     </div>
 
     <!-- Form -->
-    <div class="bg-white shadow rounded-lg p-6">
+    <div class="bg-white shadow rounded-lg p-6" x-data="feriasSimulador({{ funcionario.salario_base|stringformat:'.2f' }})">
         <form method="post" class="space-y-6">
             {% csrf_token %}
             
             <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
                 <!-- Período Aquisitivo -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Período Início *</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Período Aquisitivo Início *</label>
                     {% render_field form.periodo_aquisitivo_inicio class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" type="date" %}
-                    <p class="mt-1 text-xs text-gray-500">Início do período aquisitivo</p>
+                    <p class="mt-1 text-xs text-gray-500">Início do período aquisitivo de direito</p>
                     {% if form.periodo_aquisitivo_inicio.errors %}
                         <p class="mt-1 text-sm text-red-600">{{ form.periodo_aquisitivo_inicio.errors.0 }}</p>
                     {% endif %}
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Período Fim *</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Período Aquisitivo Fim *</label>
                     {% render_field form.periodo_aquisitivo_fim class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" type="date" %}
                     <p class="mt-1 text-xs text-gray-500">Fim do período aquisitivo (12 meses)</p>
                     {% if form.periodo_aquisitivo_fim.errors %}
@@ -59,18 +59,18 @@
 
                 <!-- Período de Gozo -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Data Início Gozo</label>
-                    {% render_field form.data_inicio_gozo class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" type="date" %}
-                    <p class="mt-1 text-xs text-gray-500">Quando o funcionário iniciará as férias</p>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Data Início do Gozo *</label>
+                    {% render_field form.data_inicio_gozo class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" type="date" x-model="inicio" @change="recalcular()" %}
+                    <p class="mt-1 text-xs text-gray-500">Primeiro dia de descanso</p>
                     {% if form.data_inicio_gozo.errors %}
                         <p class="mt-1 text-sm text-red-600">{{ form.data_inicio_gozo.errors.0 }}</p>
                     {% endif %}
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Data Fim Gozo</label>
-                    {% render_field form.data_fim_gozo class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" type="date" %}
-                    <p class="mt-1 text-xs text-gray-500">Quando o funcionário retornará</p>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Data Fim do Gozo *</label>
+                    {% render_field form.data_fim_gozo class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" type="date" x-model="fim" @change="recalcular()" %}
+                    <p class="mt-1 text-xs text-gray-500">Último dia de descanso</p>
                     {% if form.data_fim_gozo.errors %}
                         <p class="mt-1 text-sm text-red-600">{{ form.data_fim_gozo.errors.0 }}</p>
                     {% endif %}
@@ -78,18 +78,103 @@
 
                 <!-- Status -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Status *</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Status da Solicitação *</label>
                     {% render_field form.status class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" %}
+                    <p class="mt-1 text-xs text-gray-500">Use "Programada" para planejamento ou "Em Gozo" para início imediato</p>
                     {% if form.status.errors %}
                         <p class="mt-1 text-sm text-red-600">{{ form.status.errors.0 }}</p>
                     {% endif %}
                 </div>
 
+                <!-- Salário Base do Funcionário (Informativo) -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Salário Base Cadastrado</label>
+                    <div class="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-sm font-semibold text-gray-900 flex items-center justify-between">
+                        <span>R$ {{ funcionario.salario_base|floatformat:2 }}</span>
+                        <span class="text-xs font-normal text-gray-500">(R$ <span x-text="formatar(valorDia)"></span> / dia)</span>
+                    </div>
+                </div>
+
                 <!-- Observações -->
                 <div class="sm:col-span-2">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Observações</label>
-                    {% render_field form.observacoes class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" rows="3" %}
+                    {% render_field form.observacoes class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" rows="2" placeholder="Ex: Primeiro período de férias 2026, abono pecuniário, etc." %}
                 </div>
+            </div>
+
+            <!-- Card de Simulação e Conferência de Valores em Tempo Real -->
+            <div class="mt-6 border border-blue-200 rounded-xl bg-gradient-to-br from-blue-50/50 via-white to-indigo-50/40 p-5 shadow-sm">
+                <div class="flex items-center justify-between border-b border-blue-100 pb-3 mb-4">
+                    <div class="flex items-center space-x-2">
+                        <i data-lucide="calculator" class="w-5 h-5 text-blue-600"></i>
+                        <h3 class="text-base font-bold text-gray-900">Conferência e Simulação de Valores de Férias</h3>
+                    </div>
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
+                        Cálculo em Tempo Real
+                    </span>
+                </div>
+
+                <template x-if="dias > 0">
+                    <div class="space-y-4">
+                        <!-- Grid de Valores Principais -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <!-- Dias de Gozo -->
+                            <div class="bg-white p-3.5 rounded-lg border border-gray-200 shadow-xs">
+                                <span class="text-xs text-gray-500 font-medium block">Dias de Gozo</span>
+                                <span class="text-xl font-bold text-gray-900" x-text="dias + ' dia(s)'"></span>
+                                <span class="text-xs text-blue-600 block mt-0.5" x-text="inicioFmt + ' até ' + fimFmt"></span>
+                            </div>
+
+                            <!-- Valor Férias Gozadas -->
+                            <div class="bg-white p-3.5 rounded-lg border border-gray-200 shadow-xs">
+                                <span class="text-xs text-gray-500 font-medium block">Férias Gozadas (<span x-text="dias"></span> dias)</span>
+                                <span class="text-xl font-bold text-gray-900">R$ <span x-text="formatar(valorFerias)"></span></span>
+                                <span class="text-xs text-gray-400 block mt-0.5"><span x-text="dias"></span> × R$ <span x-text="formatar(valorDia)"></span></span>
+                            </div>
+
+                            <!-- 1/3 Constitucional -->
+                            <div class="bg-white p-3.5 rounded-lg border border-gray-200 shadow-xs">
+                                <span class="text-xs text-gray-500 font-medium block">1/3 Constitucional</span>
+                                <span class="text-xl font-bold text-indigo-600">+ R$ <span x-text="formatar(valorTerco)"></span></span>
+                                <span class="text-xs text-gray-400 block mt-0.5">1/3 sobre o valor de férias</span>
+                            </div>
+
+                            <!-- Total a Pagar de Férias -->
+                            <div class="bg-green-50 p-3.5 rounded-lg border border-green-300 shadow-xs">
+                                <span class="text-xs text-green-800 font-semibold block">TOTAL BRUTO DAS FÉRIAS</span>
+                                <span class="text-2xl font-extrabold text-green-700">R$ <span x-text="formatar(totalFerias)"></span></span>
+                                <span class="text-xs text-green-600 block mt-0.5">Férias + 1/3 Constitucional</span>
+                            </div>
+                        </div>
+
+                        <!-- Detalhamento de Prazos e Folha Mensal -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-gray-100 text-sm">
+                            <div class="flex items-start space-x-2.5 bg-yellow-50/80 p-3 rounded-lg border border-yellow-200 text-yellow-900">
+                                <i data-lucide="clock" class="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0"></i>
+                                <div>
+                                    <span class="font-semibold block">Prazo Legal de Pagamento (Art. 145 CLT):</span>
+                                    <span>Pagar até <b class="text-yellow-950 font-bold" x-text="dataLimitePagamento"></b> (2 dias antes do início do gozo).</span>
+                                </div>
+                            </div>
+
+                            <div class="flex items-start space-x-2.5 bg-blue-50/80 p-3 rounded-lg border border-blue-200 text-blue-900">
+                                <i data-lucide="info" class="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0"></i>
+                                <div>
+                                    <span class="font-semibold block">Impacto na Folha do Mês de Gozo:</span>
+                                    <span>Saldo de Salário trabalhado: <b class="text-blue-950" x-text="diasTrabalhados + ' dias (R$ ' + formatar(saldoSalario) + ')'"></b>.</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <template x-if="!dias || dias <= 0">
+                    <div class="py-6 text-center text-gray-500">
+                        <i data-lucide="calendar" class="w-8 h-8 mx-auto text-blue-400 mb-2 opacity-60"></i>
+                        <p class="text-sm font-medium text-gray-700">Preencha as datas de início e fim do gozo acima.</p>
+                        <p class="text-xs text-gray-400 mt-1">O sistema calculará instantaneamente o valor das férias, 1/3 e a data limite de pagamento.</p>
+                    </div>
+                </template>
             </div>
 
             <!-- Erros Gerais -->
@@ -118,12 +203,90 @@
                 <a href="{% url 'funcionarios:detail' funcionario.pk %}" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
                     Cancelar
                 </a>
-                <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700">
+                <button type="submit" class="inline-flex items-center px-5 py-2.5 border border-transparent text-sm font-semibold rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 transition-all">
                     <i data-lucide="check-circle" class="w-5 h-5 mr-2"></i>
-                    Salvar
+                    Salvar e Confirmar Férias
                 </button>
             </div>
         </form>
     </div>
 </div>
+
+<script>
+function feriasSimulador(salario) {
+    return {
+        salarioBase: parseFloat(salario) || 0,
+        inicio: '{{ form.data_inicio_gozo.value|date:"Y-m-d"|default:"" }}',
+        fim: '{{ form.data_fim_gozo.value|date:"Y-m-d"|default:"" }}',
+        dias: 0,
+        valorDia: 0,
+        valorFerias: 0,
+        valorTerco: 0,
+        totalFerias: 0,
+        dataLimitePagamento: '-',
+        inicioFmt: '-',
+        fimFmt: '-',
+        diasTrabalhados: 0,
+        saldoSalario: 0,
+
+        init() {
+            this.valorDia = this.salarioBase / 30;
+            this.recalcular();
+            // Atualiza ícones lucide
+            setTimeout(() => { if (window.lucide) window.lucide.createIcons(); }, 100);
+        },
+
+        recalcular() {
+            if (!this.inicio || !this.fim) {
+                this.dias = 0;
+                return;
+            }
+
+            const dtInicio = new Date(this.inicio + 'T00:00:00');
+            const dtFim = new Date(this.fim + 'T00:00:00');
+
+            if (dtFim < dtInicio) {
+                this.dias = 0;
+                return;
+            }
+
+            const diffTime = dtFim.getTime() - dtInicio.getTime();
+            this.dias = Math.round(diffTime / (1000 * 3600 * 24)) + 1;
+
+            this.valorDia = this.salarioBase / 30;
+            this.valorFerias = this.valorDia * this.dias;
+            this.valorTerco = this.valorFerias / 3;
+            this.totalFerias = this.valorFerias + this.valorTerco;
+
+            // Formatação de datas
+            this.inicioFmt = dtInicio.toLocaleDateString('pt-BR');
+            this.fimFmt = dtFim.toLocaleDateString('pt-BR');
+
+            // Data Limite de Pagamento (2 dias antes)
+            const dtLimite = new Date(dtInicio);
+            dtLimite.setDate(dtLimite.getDate() - 2);
+            this.dataLimitePagamento = dtLimite.toLocaleDateString('pt-BR');
+
+            // Dias no mês de início
+            const ano = dtInicio.getFullYear();
+            const mes = dtInicio.getMonth() + 1;
+            const ultimoDiaMes = new Date(ano, mes, 0).getDate();
+
+            if (this.dias >= 30) {
+                this.diasTrabalhados = 0;
+                this.saldoSalario = 0;
+            } else {
+                this.diasTrabalhados = Math.max(0, ultimoDiaMes - this.dias);
+                this.saldoSalario = this.valorDia * this.diasTrabalhados;
+            }
+
+            setTimeout(() => { if (window.lucide) window.lucide.createIcons(); }, 50);
+        },
+
+        formatar(valor) {
+            return Number(valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+    }
+}
+</script>
 {% endblock %}
