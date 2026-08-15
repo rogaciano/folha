@@ -167,14 +167,14 @@ class FolhaServiceTest(TestCase):
         folha = FolhaService.gerar_folha(mes=1, ano=2024)
         
         # Salário 6000 / 30 = 200/dia
-        # 20 dias trabalhados = 4000.00
+        # 21 dias trabalhados (31 - 10) = 4200.00
         # 10 dias férias = 2000.00
         # 1/3 de férias = 666.67
         item_salario = ItemFolha.objects.get(
             folha_pagamento=folha,
             provento_desconto__codigo_referencia='SALARIO'
         )
-        self.assertEqual(item_salario.valor_lancado, Decimal('4000.00'))
+        self.assertEqual(item_salario.valor_lancado, Decimal('4200.00'))
 
         item_ferias = ItemFolha.objects.get(
             folha_pagamento=folha,

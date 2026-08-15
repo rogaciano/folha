@@ -378,12 +378,13 @@ class FolhaService:
                 dias = (fim - inicio).days + 1
                 dias_ferias_mes += dias
 
-        # Limita ao mês comercial de 30 dias
+        # Se as férias cobrem o mês inteiro (30 dias ou mês completo)
         if dias_ferias_mes >= 30 or (dias_ferias_mes >= ultimo_dia_mes and ultimo_dia_mes in [28, 29, 31]):
             dias_ferias_mes = 30
             dias_trabalhados = 0
         else:
-            dias_trabalhados = max(0, 30 - dias_ferias_mes)
+            # Dias trabalhados reais no mês
+            dias_trabalhados = max(0, ultimo_dia_mes - dias_ferias_mes)
 
         if dias_ferias_mes > 0:
             valor_dia = funcionario.salario_base / Decimal('30')
